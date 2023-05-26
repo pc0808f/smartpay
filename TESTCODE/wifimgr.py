@@ -6,7 +6,6 @@ OTA指令的密碼固定為 c0b82a2c-4b03-42a5-92cd-3478798b2a90
 
 """
 
-
 import time
 import network
 from umqtt.simple import MQTTClient
@@ -21,40 +20,39 @@ print("connected")
 
 cpuid = binascii.hexlify(machine.unique_id()).decode()
 token = 'a44a4cd6-20d7-4ac1-a183-7a7431ba27e9'
-otafile='otalist.dat'
+otafile = 'otalist.dat'
 
 client = MQTTClient(
     client_id=cpuid,
     keepalive=30,
     server="172.104.127.68",
-    user = "myuser",
-    port = 1883,
-    password = "propskymqtt",
+    user="myuser",
+    port=1883,
+    password="propskymqtt",
     ssl=False)
 client.connect()
 
+
 def get_msg(topic, msg):
-    payload=msg
-    decode=ujson.loads(payload)
-    print(decode['file_list'])
-    if(decode['password']=="c0b82a2c-4b03-42a5-92cd-3478798b2a90"):
-        print("password checked")
-        with open(otafile, "w") as f:
-            f.write(''.join(decode['file_list']))
-    else:
-        print("password failed")
+    payload = msg
+    decode = ujson.loads(payload)
 
-
-
+    if topic.decode() == (cpuid + '/' + token + '/fota'):
+        if ('file_list' in decode) and ('password' in decode):
+            if decode['password'] == 'c0b82a2c-4b03-42a5-92cd-3478798b2a90':
+                print("password checked")
+                with open(otafile, "w") as f:
+                    f.write(''.join(decode['file_list']))
+            else:
+                print("password failed")
 
 
 client.set_callback(get_msg)
-#cardid/token/fota
-subTopic=cpuid+'/'+token
+# cardid/token/fota
+subTopic = cpuid + '/' + token
 client.subscribe(subTopic)
-subTopic=cpuid+'/'+token+'/fota'
+subTopic = cpuid + '/' + token + '/fota'
 client.subscribe(subTopic)
-
 
 counter = 0
 while True:
