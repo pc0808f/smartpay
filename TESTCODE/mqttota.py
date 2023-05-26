@@ -1,12 +1,3 @@
-"""
-這個檔案，是要展示如何用MQTT做OTA指令的
-包含訂閱了cardid/token/fota
-還有解析送回來的資料並把他存到otalist.dat中
-OTA指令的密碼固定為 c0b82a2c-4b03-42a5-92cd-3478798b2a90
-
-"""
-
-
 import time
 import network
 from umqtt.simple import MQTTClient
@@ -21,7 +12,6 @@ print("connected")
 
 cpuid = binascii.hexlify(machine.unique_id()).decode()
 token = 'a44a4cd6-20d7-4ac1-a183-7a7431ba27e9'
-otafile='otalist.dat'
 
 client = MQTTClient(
     client_id=cpuid,
@@ -34,19 +24,10 @@ client = MQTTClient(
 client.connect()
 
 def get_msg(topic, msg):
-    payload=msg
-    decode=ujson.loads(payload)
-    print(decode['file_list'])
-    if(decode['password']=="c0b82a2c-4b03-42a5-92cd-3478798b2a90"):
-        print("password checked")
-        with open(otafile, "w") as f:
-            f.write(''.join(decode['file_list']))
-    else:
-        print("password failed")
-
-
-
-
+    print("topic=",topic)
+    print("msg=",msg)
+    decode=ujson.load(msg)
+    print(decode)
 
 client.set_callback(get_msg)
 #cardid/token/fota
@@ -64,4 +45,3 @@ while True:
     client.ping()
 
     time.sleep(1)
-
