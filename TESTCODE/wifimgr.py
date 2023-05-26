@@ -18,8 +18,12 @@ while not sta_if.isconnected():
     pass
 print("connected")
 
+with open('token.dat') as f:
+    token = f.readlines()[0].strip()
+print(token)
+
 cpuid = binascii.hexlify(machine.unique_id()).decode()
-token = 'a44a4cd6-20d7-4ac1-a183-7a7431ba27e9'
+#token = 'a44a4cd6-20d7-4ac1-a183-7a7431ba27e9'
 otafile = 'otalist.dat'
 
 client = MQTTClient(
