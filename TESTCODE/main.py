@@ -3,6 +3,9 @@
 import wifimgr
 from time import sleep
 import machine
+import senko
+import os
+
 
 try:
   import usocket as socket
@@ -11,6 +14,9 @@ except:
 
 led = machine.Pin(2, machine.Pin.OUT)
 keyMenu = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_UP)
+keyU = machine.Pin(36, machine.Pin.IN, machine.Pin.PULL_UP)
+keyD = machine.Pin(39, machine.Pin.IN, machine.Pin.PULL_UP)
+
 
 wlan = wifimgr.get_connection()
 if wlan is None:
@@ -20,6 +26,41 @@ if wlan is None:
 
 # Main Code goes here, wlan is a working network.WLAN(STA_IF) instance.
 print("ESP OK")
+
+
+# 檔案名稱
+filename = 'otalist.dat'
+
+# 取得目錄下的所有檔案和資料夾
+file_list = os.listdir()
+print(file_list)
+# 檢查檔案是否存在
+if filename in file_list:
+    #在這邊要做讀取OTA列表，然後進行OTA的執行
+    print("OTA檔案存在")
+    with open(filename) as f:
+        lines = f.readlines()[0].strip()
+     
+    lines = lines.replace(' ', '')
+    
+    # 移除字串中的雙引號和空格，然後使用逗號分隔字串
+    file_list = [file.strip('"') for file in lines.split(',')]
+  
+    OTA = senko.Senko(
+      user="pc0808f", # Required
+      repo="happycollector", # Required
+      branch="alpha", # Optional: Defaults to "master"
+      working_dir="happyboard/20230524V1", # Optional: Defaults to "app"
+      files = file_list
+    )
+    if OTA.update():
+        print("Updated to the latest version! Rebooting...")
+        os.remove(filename)
+        machine.reset()   
+else:
+    print("OTA檔案不存在")
+    
+print("ESP OTA OK")
 
 def web_page():
   if led.value() == 1:
@@ -77,4 +118,33 @@ while True:
       sleep(0.02)
       if keyMenu.value()==0:
           print("reset wifi")
-          wifimgr.start()
+          try:
+                # 刪除檔案
+              os.remove('wifi.dat')
+              print("檔案刪除成功")
+              machine.reset()
+          except OSError as e:
+              print("刪除檔案時發生錯誤:", e)          
+                      
+  if keyU.value()==0:
+    sleep(0.02)
+    if keyU.value()==0:
+        OTA = senko.Senko(
+            user="pc0808f", # Required
+            repo="happycollector", # Required
+            branch="alpha", # Optional: Defaults to "master"
+            working_dir="happyboard/20230524V1", # Optional: Defaults to "app"
+            files = ["otatest1.py"]
+            )
+        if OTA.fetch():
+            print("A newer version is available!")
+            if OTA.update():
+                print("Updated to the latest version! Rebooting...")
+                    #machine.reset()
+            else:
+                print("Up to date!" )
+                
+  if keyD.value()==0:
+    sleep(0.02)
+    if keyD.value()==0:
+        execfile('main2.py')
