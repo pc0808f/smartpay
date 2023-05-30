@@ -1,4 +1,4 @@
-#2023/05/30
+#2023/05/30_1
 
 import machine
 from machine import UART
@@ -165,6 +165,7 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
                     print("password checked")
                     with open(otafile, "w") as f:
                         f.write(''.join(data['file_list']))
+                    machine.reset()
                 else:
                     print("password failed")
 
