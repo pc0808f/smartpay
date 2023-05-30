@@ -94,17 +94,17 @@ def do_connect(ssid, password):
         print('.', end='')
     if connected:
         print('\nConnected. Network config: ', wlan_sta.ifconfig())
-        
+
     else:
         print('\nFailed. Not Connected to: ' + ssid)
     return connected
 
 
-def send_header(client, status_code=200, content_length=None ):
+def send_header(client, status_code=200, content_length=None):
     client.sendall("HTTP/1.0 {} OK\r\n".format(status_code))
     client.sendall("Content-Type: text/html\r\n")
     if content_length is not None:
-      client.sendall("Content-Length: {}\r\n".format(content_length))
+        client.sendall("Content-Length: {}\r\n".format(content_length))
     client.sendall("\r\n")
 
 
@@ -133,27 +133,55 @@ def handle_root(client):
     """)
     while len(ssids):
         ssid = ssids.pop(0)
+        try:
+            client.sendall("""\
+                            <tr>
+                                <td colspan="2">
+                                    <input type="radio" name="ssid" value="{0}" />{0}
+                                </td>
+                            </tr>
+            """.format(ssid))
+        except OSError as e:
+            print("exception", str(e))
+    try:
         client.sendall("""\
-                        <tr>
-                            <td colspan="2">
-                                <input type="radio" name="ssid" value="{0}" />{0}
-                            </td>
-                        </tr>
-        """.format(ssid))
-    client.sendall("""\
-                        <tr>
-                            <td>Password:</td>
-                            <td><input name="password" type="password" /></td>
-                        </tr>
-                    </tbody>
-                </table>
-                <p style="text-align: center;">
-                    <input type="submit" value="Submit" />
-                </p>
-            </form>
-            <p>&nbsp;</p>
-        </html>
-    """ )
+                            <tr>
+                                <td>Password:</td>
+                                <td><input name="password" type="password" /></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p style="text-align: center;">
+                        <input type="submit" value="Submit" />
+                    </p>
+                </form>
+                <p>&nbsp;</p>
+                <hr />
+                <h5>
+                    <span style="color: #ff0000;">
+                        Your ssid and password information will be saved into the
+                        "%(filename)s" file in your ESP module for future usage.
+                        Be careful about security!
+                    </span>
+                </h5>
+                <hr />
+                <h2 style="color: #2e6c80;">
+                    Some useful infos:
+                </h2>
+                <ul>
+                    <li>
+                        Original code from <a href="https://github.com/cpopp/MicroPythonSamples"
+                            target="_blank" rel="noopener">cpopp/MicroPythonSamples</a>.
+                    </li>
+                    <li>
+                        This code available at <a href="https://github.com/tayfunulu/WiFiManager"
+                            target="_blank" rel="noopener">tayfunulu/WiFiManager</a>.
+                    </li>
+                </ul>
+            </html>
+        """ % dict(filename=NETWORK_PROFILES))
+    except OSError as e:
+        print("exception", str(e))
     client.close()
 
 

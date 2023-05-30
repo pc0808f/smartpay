@@ -7,7 +7,6 @@ import senko
 import os
 from dr.st7735.st7735_4bit import ST7735
 from machine import SPI, Pin
-from defineparameter import DefineParameter as DP
 
 from machine import Pin
 from BN165DKBDriver import readKBData
@@ -55,15 +54,15 @@ dis.dev.show()
 gc.collect()
 print(gc.mem_free())
 
-if (wifimgr.read_profiles() != {}):
-    print(wifimgr.read_profiles())
-    dis.draw_text(spleen16, 'SSID:', 0, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
-    dis.draw_text(spleen16, list(wifimgr.read_profiles().keys())[0][:10], 5 * 8, 16, 1, dis.fgcolor, dis.bgcolor, 0,
-                  True, 0, 0)
-else:
-    dis.draw_text(spleen16, 'no ssid', 0, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
-    dis.draw_text(spleen16, 'need setup wifi..', 0, 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
-dis.dev.show()
+# if (wifimgr.read_profiles() != {}):
+#     print(wifimgr.read_profiles())
+#     dis.draw_text(spleen16, 'SSID:', 0, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+#     dis.draw_text(spleen16, list(wifimgr.read_profiles().keys())[0][:10], 5 * 8, 16, 1, dis.fgcolor, dis.bgcolor, 0,
+#                   True, 0, 0)
+# else:
+#     dis.draw_text(spleen16, 'no ssid', 0, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+#     dis.draw_text(spleen16, 'need setup wifi..', 0, 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+# dis.dev.show()
 
 wlan = wifimgr.get_connection()
 if wlan is None:
@@ -73,6 +72,9 @@ if wlan is None:
 
 # Main Code goes here, wlan is a working network.WLAN(STA_IF) instance.
 print("ESP OK")
+
+dis.draw_text(spleen16, 'SSID:', 0, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+dis.draw_text(spleen16, wlan.config('essid'), 5 * 8, 16, 1, dis.fgcolor, dis.bgcolor, 0, )
 
 dis.draw_text(spleen16, wlan.ifconfig()[0], 0, 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
 # dis.draw_text(spleen16, list(wifimgr.read_profiles().keys())[0][:10], 5*8, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
@@ -120,29 +122,6 @@ else:
 print("ESP OTA OK")
 
 while True:
-    #   print("while true loop")
-    keyData = readKBData(1, CP, CE, PL, Q7)
-    if keyData[3] == 0:
-        sleep(0.02)
-        keyData = readKBData(1, CP, CE, PL, Q7)
-        if keyData[3] == 0:
-            try:
-                del st7735
-                del dis
-                del color
-                del spi
-                del color
-                del spleen16
-                del colors
-                del display
-                del ST7735
-            except:
-                pass
-            gc.collect()
-            print(gc.mem_free())
-            while keyData[3] == 0:
-                keyData = readKBData(1, CP, CE, PL, Q7)
-            execfile('main2.py')
     for i in range(9, 0, -1):
         dis.draw_text(spleen16, "CountDown..." + str(i), 0, 16 + 16 + 16, 1, dis.fgcolor, color.BLACK, -1, True, 0, 0)
         # dis.draw_text(spleen16, list(wifimgr.read_profiles().keys())[0][:10], 5*8, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
@@ -150,7 +129,6 @@ while True:
         sleep(1)
 
     try:
-
         del dis
         del color
         del st7735
