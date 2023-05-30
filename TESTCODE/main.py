@@ -5,6 +5,8 @@ from time import sleep
 import machine
 import senko
 import os
+from dr.st7735.st7735_16bit import ST7735
+from machine import SPI, Pin
 
 
 try:
@@ -16,6 +18,25 @@ led = machine.Pin(2, machine.Pin.OUT)
 keyMenu = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_UP)
 keyU = machine.Pin(36, machine.Pin.IN, machine.Pin.PULL_UP)
 keyD = machine.Pin(39, machine.Pin.IN, machine.Pin.PULL_UP)
+
+
+spi = SPI(1, baudrate=20000000, polarity=0, phase=0, sck=Pin(14), mosi=Pin(13))
+st7735 = ST7735(spi,4,15,None,128,160,rotate=3)
+st7735.initr()
+st7735.setrgb(True)
+
+
+from gui.colors import colors
+color = colors(st7735)
+
+from dr.display import display
+
+import fonts.spleen16 as spleen16
+dis = display(st7735,'ST7735_FB',color.WHITE,color.BLACK)
+dis.fill(color.BLACK)
+dis.draw_text(spleen16, 'Happy Collector', 0, 0, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+
+dis.dev.show()
 
 
 wlan = wifimgr.get_connection()
