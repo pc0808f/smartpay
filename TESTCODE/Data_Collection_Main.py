@@ -1,4 +1,4 @@
-#2023/05/30_1
+# 2023/6/7_V1.02, Thomas
 
 import machine
 from machine import UART
@@ -27,52 +27,65 @@ class MainStateMachine:
     def __init__(self):
         self.state = MainStatus.NONE_WIFI
         # 以下執行"狀態機初始化"相應的操作
-        print('Init, MainStatus: NONE_WIFI')
+        print('\n\rInit, MainStatus: NONE_WIFI')
+        global main_while_delay_seconds
+        main_while_delay_seconds = 1
 
     def transition(self, action):
+        global main_while_delay_seconds
         if action == 'WiFi is disconnect':
             self.state = MainStatus.NONE_WIFI
             # 以下執行"未連上WiFi後"相應的操作
-            print('Action: WiFi is disconnect, MainStatus: NONE_WIFI')
+            print('\n\rAction: WiFi is disconnect, MainStatus: NONE_WIFI')
+            main_while_delay_seconds = 1
 
         elif self.state == MainStatus.NONE_WIFI and action == 'WiFi is OK':
-            self.state = MainStatus.NONE_MQTT
+            self.state = MainStatus.NONE_INTERNET
             # 以下執行"連上WiFi後"相應的操作
-            print('Action: WiFi is OK, MainStatus: NONE_MQTT')
+            print('\n\rAction: WiFi is OK, MainStatus: NONE_INTERNET')
+            main_while_delay_seconds = 1
 
         elif self.state == MainStatus.NONE_INTERNET and action == 'Internet is OK':
             self.state = MainStatus.NONE_MQTT
             # 以下執行"連上Internet後"相應的操作
-            print('Action: Internet is OK, MainStatus: NONE_MQTT')
+            print('\n\rAction: Internet is OK, MainStatus: NONE_MQTT')
+            main_while_delay_seconds = 1
 
         elif self.state == MainStatus.NONE_MQTT and action == 'MQTT is OK':
             self.state = MainStatus.NONE_FEILOLI
             # 以下執行"連上MQTT後"相應的操作
-            print('Action: MQTT is OK, MainStatus: NONE_FEILOLI')
+            print('\n\rAction: MQTT is OK, MainStatus: NONE_FEILOLI')
+            main_while_delay_seconds = 10
 
-        elif (self.state == MainStatus.NONE_FEILOLI or self.state == MainStatus.WAITING_FEILOLI) and action == 'FEILOLI UART is OK':
+        elif (
+                self.state == MainStatus.NONE_FEILOLI or self.state == MainStatus.WAITING_FEILOLI) and action == 'FEILOLI UART is OK':
             self.state = MainStatus.STANDBY_FEILOLI
             # 以下執行"連上FEILOLI娃娃機後"相應的操作
-            print('Action: FEILOLI UART is OK, MainStatus: STANDBY_FEILOLI')
+            print('\n\rAction: FEILOLI UART is OK, MainStatus: STANDBY_FEILOLI')
+            main_while_delay_seconds = 10
 
         elif self.state == MainStatus.STANDBY_FEILOLI and action == 'FEILOLI UART is waiting':
             self.state = MainStatus.WAITING_FEILOLI
             # 以下執行"等待FEILOLI娃娃機後"相應的操作
-            print('Action: FEILOLI UART is waiting, MainStatus: WAITING_FEILOLI')
+            print('\n\rAction: FEILOLI UART is waiting, MainStatus: WAITING_FEILOLI')
+            main_while_delay_seconds = 10
 
         elif self.state == MainStatus.WAITING_FEILOLI and action == 'FEILOLI UART is not OK':
             self.state = MainStatus.NONE_FEILOLI
             # 以下執行"等待失敗後"相應的操作
-            print('Action: FEILOLI UART is not OK, MainStatus: NONE_FEILOLI')
+            print('\n\rAction: FEILOLI UART is not OK, MainStatus: NONE_FEILOLI')
+            main_while_delay_seconds = 10
 
         elif (
                 self.state == MainStatus.NONE_FEILOLI or self.state == MainStatus.STANDBY_FEILOLI or self.state == MainStatus.WAITING_FEILOLI) and action == 'MQTT is not OK':
             self.state = MainStatus.NONE_MQTT
             # 以下執行"MQTT失敗後"相應的操作
-            print('Action: MQTT is not OK, MainStatus: NONE_MQTT')
+            print('\n\rAction: MQTT is not OK, MainStatus: NONE_MQTT')
+            main_while_delay_seconds = 1
 
         else:
-            print('Invalid action:', action, 'for current state:', self.state)
+            print('\n\rInvalid action:', action, 'for current state:', self.state)
+            main_while_delay_seconds = 1
 
         # 開啟 token 檔案
 
@@ -96,13 +109,28 @@ def load_token():
 
 
 def connect_wifi():
-    #     wifi_ssid = 'propsky'
-    #     wifi_password = '42886178sky'
-    #     wifi_ssid = 'paypc'
-    #     wifi_password = 'abcd1234'
+    '''     Thomas改到一半
+
+    with open('wifi.dat') as f:
+        lines = f.readlines()
+    profiles = {}
+    for line in lines:
+        ssid, password = line.strip("\n").split(";")
+        profiles[ssid] = password
+    prin('Open wifi.dat sucess)
+    '''
+    '''
+#     wifi_ssid = 'propsky'
+#     wifi_password = '42886178sky'
+    wifi_ssid = 'paypc'
+    wifi_password = 'abcd1234'
     wifi = network.WLAN(network.STA_IF)
-    #     wifi.active(True)
-    #     wifi.connect(wifi_ssid, wifi_password)
+    wifi.active(True)
+    wifi.connect(wifi_ssid, wifi_password)
+    '''
+
+    wifi = network.WLAN(network.STA_IF)
+
     print('Start to connect WiFi')
     while True:
         for i in range(20):
@@ -158,16 +186,22 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
         print("MQTT Subscribe data:", data)
 
         macid = my_internet_data.mac_address
-        otafile = 'otalist.dat'
-        if topic.decode() == (macid + '/' + token + '/fota'):
+        mq_topic = macid + '/' + token
+        if topic.decode() == (mq_topic + '/fota'):
+            otafile = 'otalist.dat'
             if ('file_list' in data) and ('password' in data):
                 if data['password'] == 'c0b82a2c-4b03-42a5-92cd-3478798b2a90':
                     print("password checked")
                     with open(otafile, "w") as f:
                         f.write(''.join(data['file_list']))
+                    print("otafile 輸出完成，即將重開機...")
                     machine.reset()
                 else:
                     print("password failed")
+        elif topic.decode() == (mq_topic + '/commands'):
+            if data['commands'] == 'ping':
+                publish_MQTT_claw_data(claw_1, 'pong')
+    #       elif data['commands'] == 'getstatus':
 
     except Exception as e:
         print("MQTT Subscribe data to JSON Error:", e)
@@ -198,18 +232,25 @@ def publish_data(mq_client, topic, data):
 
 def publish_MQTT_claw_data(claw_data, MQTT_API_select):  # 可以選擇claw_1、claw_2、...，但MQTT_client暫時固定為mq_client_1
     if MQTT_API_select == 'sales':
+        WCU_Freeplaytimes = (
+                    claw_data.Number_of_Total_games - claw_data.Number_of_Original_Payment - claw_data.Number_of_Coin - claw_data.Number_of_Gift_Payment)
+
         MQTT_claw_data = {
             "Epayplaytimes": claw_data.Number_of_Original_Payment,
             "Coinplaytimes": claw_data.Number_of_Coin,
             "Giftplaytimes": claw_data.Number_of_Gift_Payment,
             "GiftOuttimes": claw_data.Number_of_Award,
-            "Freeplaytimes": (
-                    claw_data.Number_of_Total_games - claw_data.Number_of_Original_Payment - claw_data.Number_of_Coin - claw_data.Number_of_Gift_Payment),
+            "Freeplaytimes": WCU_Freeplaytimes,
             "time": utime.time()
         }
     elif MQTT_API_select == 'status':
         MQTT_claw_data = {
             "status": claw_data.Error_Code_of_Machine,
+            "time": utime.time()
+        }
+    elif MQTT_API_select == 'pong':
+        MQTT_claw_data = {
+            "ack": "pong",
             "time": utime.time()
         }
     macid = my_internet_data.mac_address
@@ -388,22 +429,24 @@ def uart_FEILOLI_recive_packet_task():
         utime.sleep_ms(100)  # 休眠一小段時間，避免過度使用CPU資源
 
 
-# 定義server_check計時器回調函式
-def server_check_timer_callback(timer):
-    # print("Checking WiFi status...")
-    # 之後要檢查 WiFi狀態的程式碼
-    # print("Checking network status...")
-    # 之後要檢查網路狀態的程式碼
-    # print("Checking MQTT status...")
-    # 之後要檢查 MQTT 狀態的程式碼
+server_report_sales_period = 3 * 60  # 3分鐘 = 3*60 單位秒
+# server_report_sales_period = 10   # For快速測試
+server_report_sales_counter = 0
 
-    if (
-            now_main_state.state == MainStatus.NONE_FEILOLI) or now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI:
+
+# 定義server_report計時器回調函式 (每1秒執行1次)
+def server_report_timer_callback(timer):
+    if now_main_state.state == MainStatus.NONE_FEILOLI or now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI:
+
+        # 更新 MQTT Subscribe
         mq_client_1.check_msg()
         mq_client_1.ping()
 
-        publish_MQTT_claw_data(claw_1, 'sales')
-        if claw_1.Error_Code_of_Machine != 0x00:
+        global server_report_sales_counter
+        server_report_sales_counter = (server_report_sales_counter + 1) % server_report_sales_period
+        if server_report_sales_counter == 0:
+            publish_MQTT_claw_data(claw_1, 'sales')
+            # if claw_1.Error_Code_of_Machine != 0x00 :
             publish_MQTT_claw_data(claw_1, 'status')
 
 
@@ -414,20 +457,23 @@ counter_of_WAITING_FEILOLI = 0
 def claw_check_timer_callback(timer):
     global counter_of_WAITING_FEILOLI
     if now_main_state.state == MainStatus.NONE_FEILOLI:
-        print("Updating 娃娃機 sales ...")
+        print("Updating 娃娃機 機台狀態 ...")
         uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Machine_status)
 
     elif now_main_state.state == MainStatus.STANDBY_FEILOLI:
-        print("Updating 娃娃機 sales、status ...")
+        print("Updating 娃娃機 遠端帳目、投幣帳目 ...")
         uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Transaction_account)
+        # uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Coin_account)
         now_main_state.transition('FEILOLI UART is waiting')
         counter_of_WAITING_FEILOLI = 0
 
     if now_main_state.state == MainStatus.WAITING_FEILOLI:
         counter_of_WAITING_FEILOLI = counter_of_WAITING_FEILOLI + 1
         if counter_of_WAITING_FEILOLI >= 2:
-            now_main_state.transition('FEILOLI UART is not OK')
-            print("Updating 娃娃機 sales ...")
+            if counter_of_WAITING_FEILOLI == 2:
+                print("Updating 娃娃機 失敗 ...")
+                now_main_state.transition('FEILOLI UART is not OK')
+            print("Updating 娃娃機 機台狀態 ...")
             uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Machine_status)
 
 
@@ -442,36 +488,35 @@ now_main_state = MainStateMachine()
 # 創建娃娃機資料
 claw_1 = ReceivedClawData()
 
+# 創建 MQTT Client 1 資料
+mq_client_1 = None
+
 # UART配置
 uart_FEILOLI = machine.UART(2, baudrate=19200, tx=17, rx=16)
 
 # 創建計時器物件
-server_check_timer = machine.Timer(0)
+server_report_timer = machine.Timer(0)
 claw_check_timer = machine.Timer(1)
 
 # 建立並執行uart_FEILOLI_recive_packet_task
 _thread.start_new_thread(uart_FEILOLI_recive_packet_task, ())
 
-# 設定server_check計時器的間隔和回調函式
-TIMER_INTERVAL = 10 * 1000  # 設定1秒鐘 = 1000（單位：毫秒）
-server_check_timer.init(period=TIMER_INTERVAL, mode=machine.Timer.PERIODIC, callback=server_check_timer_callback)
+# 設定server_report計時器的間隔和回調函式
+TIMER_INTERVAL = 1000  # 設定1秒鐘 = 1000（單位：毫秒）
+server_report_timer.init(period=TIMER_INTERVAL, mode=machine.Timer.PERIODIC, callback=server_report_timer_callback)
 TIMER_INTERVAL = 10 * 1000  # 設定10秒鐘 = 10*1000（單位：毫秒）
 claw_check_timer.init(period=TIMER_INTERVAL, mode=machine.Timer.PERIODIC, callback=claw_check_timer_callback)
 
-lasttick = 0
-delayseconds = 1
-
-mq_client_1 = None
-
+last_time = 0
+main_while_delay_seconds = 1
 while True:
 
-    currenttime = time.ticks_ms()
-    if (time.ticks_diff(currenttime, lasttick) > delayseconds * 1000):
-        lasttick = time.ticks_ms()
-        print('開機秒數:', time.ticks_ms() / 1000)
+    current_time = time.ticks_ms()
+    if (time.ticks_diff(current_time, last_time) >= main_while_delay_seconds * 1000):
+        last_time = time.ticks_ms()
+
         if now_main_state.state == MainStatus.NONE_WIFI:
-            print('now_main_state: WiFi is disconnect')
-            delayseconds = 1
+            print('\n\rnow_main_state: WiFi is disconnect, 開機秒數:', current_time / 1000)
 
             my_internet_data = connect_wifi()
             # 打印 myInternet 内容
@@ -480,35 +525,25 @@ while True:
             now_main_state.transition('WiFi is OK')
 
         elif now_main_state.state == MainStatus.NONE_INTERNET:
-            print('now_main_state: WiFi is OK')
-            delayseconds = 1
-            now_main_state.transition('Internet is OK')
+            print('\n\rnow_main_state: WiFi is OK, 開機秒數:', current_time / 1000)
+            now_main_state.transition('Internet is OK')  # 目前不做判斷，狀態機直接往下階段跳轉
 
         elif now_main_state.state == MainStatus.NONE_MQTT:
-            print('now_main_state: Internet is OK')
-            delayseconds = 1
+            print('now_main_state: Internet is OK, 開機秒數:', current_time / 1000)
             mq_client_1 = connect_mqtt()
             if mq_client_1 is not None:
                 subscribe_MQTT_claw_topic()
                 now_main_state.transition('MQTT is OK')
-#                 claw_check_timer_callback()
-
 
         elif now_main_state.state == MainStatus.NONE_FEILOLI:
-            print('now_main_state: MQTT is OK (FEILOLI UART is not OK)')
-            delayseconds = 1
-
-
+            print('\n\rnow_main_state: MQTT is OK (FEILOLI UART is not OK), 開機秒數:', current_time / 1000)
 
         elif now_main_state.state == MainStatus.STANDBY_FEILOLI:
-            print('now_main_state: FEILOLI UART is OK')
-            delayseconds = 30
+            print('\n\rnow_main_state: FEILOLI UART is OK, 開機秒數:', current_time / 1000)
 
         elif now_main_state.state == MainStatus.WAITING_FEILOLI:
-            print('now_main_state: FEILOLI UART is witing')
-            delayseconds = 1
+            print('\n\rnow_main_state: FEILOLI UART is witing, 開機秒數:', current_time / 1000)
 
         else:
-            print('Invalid action! now_main_state:', now_main_state.state)
-            delayseconds = 1
-
+            print('\n\rInvalid action! now_main_state:', now_main_state.state)
+            print('開機秒數:', current_time / 1000)

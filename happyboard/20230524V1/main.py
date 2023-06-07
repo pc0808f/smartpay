@@ -142,6 +142,6 @@ while True:
         pass
     gc.collect()
     print(gc.mem_free())
-    execfile('Data_Collection_Main_0525v4RX_task.py')
+    execfile('Data_Collection_Main.py')
 
 
