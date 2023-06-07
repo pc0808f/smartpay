@@ -8,16 +8,17 @@ import utime, time
 import network
 import ujson
 
+VERSION = "V1.03"
 
 # 定義狀態類型
 class MainStatus:
-    NONE_WIFI = 0  # 還沒連上WiFi
-    NONE_INTERNET = 1  # 連上WiFi，但還沒連上外網      現在先不做這個判斷
-    NONE_MQTT = 2  # 連上外網，但還沒連上MQTT Broker
-    NONE_FEILOLI = 3  # 連上MQTT，但還沒連上FEILOLI娃娃機
-    STANDBY_FEILOLI = 4  # 連上FEILOLI娃娃機，正常運行中
-    WAITING_FEILOLI = 5  # 連上FEILOLI娃娃機，等待娃娃機回覆
-    GOING_TO_OTA = 6  # 接收到要OTA，但還沒完成OTA
+    NONE_WIFI = 0       # 還沒連上WiFi
+    NONE_INTERNET = 1   # 連上WiFi，但還沒連上外網      現在先不做這個判斷
+    NONE_MQTT = 2       # 連上外網，但還沒連上MQTT Broker
+    NONE_FEILOLI = 3    # 連上MQTT，但還沒連上FEILOLI娃娃機
+    STANDBY_FEILOLI = 4 # 連上FEILOLI娃娃機，正常運行中
+    WAITING_FEILOLI = 5 # 連上FEILOLI娃娃機，等待娃娃機回覆
+    GOING_TO_OTA = 6    # 接收到要OTA，但還沒完成OTA
     UNEXPECTED_STATE = -1
 
 
@@ -201,6 +202,8 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
         elif topic.decode() == (mq_topic + '/commands'):
             if data['commands'] == 'ping':
                 publish_MQTT_claw_data(claw_1, 'commandack-pong')
+            elif data['commands'] == 'version':
+                publish_MQTT_claw_data(claw_1, 'commandack-version')
     #       elif data['commands'] == 'getstatus':
 
     except Exception as e:
@@ -259,6 +262,13 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select):  # 可以選擇claw_1、
         mq_topic = macid + '/' + token + '/commandack'
         MQTT_claw_data = {
             "ack": "pong",
+            "time": utime.time()
+        }
+    elif MQTT_API_select == 'commandack-version':
+        macid = my_internet_data.mac_address
+        mq_topic = macid + '/' + token + '/commandack'
+        MQTT_claw_data = {
+            "ack": VERSION,
             "time": utime.time()
         }
     mq_json_str = ujson.dumps(MQTT_claw_data)
