@@ -8,6 +8,8 @@ import os
 from dr.st7735.st7735_4bit import ST7735
 from machine import SPI, Pin
 
+import ntptime
+
 from machine import Pin
 from BN165DKBDriver import readKBData
 
@@ -79,6 +81,33 @@ dis.draw_text(spleen16, wlan.config('essid'), 5 * 8, 16, 1, dis.fgcolor, dis.bgc
 dis.draw_text(spleen16, wlan.ifconfig()[0], 0, 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
 # dis.draw_text(spleen16, list(wifimgr.read_profiles().keys())[0][:10], 5*8, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
 dis.dev.show()
+
+def tw_ntp(host='clock.stdtime.gov.tw', must=False):
+  """
+  host: 台灣可用的 ntp server 如下可任選，未指定預設為 clock.stdtime.gov.tw
+    tock.stdtime.gov.tw
+    watch.stdtime.gov.tw
+    time.stdtime.gov.tw
+    clock.stdtime.gov.tw
+    tick.stdtime.gov.tw
+  must: 是否非對到不可
+  """
+  ntptime.NTP_DELTA = 3155644800 # UTC+8 的 magic number
+  ntptime.host = host
+  count = 1
+  if must:
+    count = 100
+  for _ in  range(count):
+    try:
+      ntptime.settime()
+    except:
+      time.sleep(1)
+      continue
+    else:
+      return True
+  return False
+
+tw_ntp()
 
 # 檔案名稱
 filename = 'otalist.dat'
