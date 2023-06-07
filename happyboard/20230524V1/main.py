@@ -92,7 +92,7 @@ def tw_ntp(host='clock.stdtime.gov.tw', must=False):
     tick.stdtime.gov.tw
   must: 是否非對到不可
   """
-  ntptime.NTP_DELTA = 0 # UTC+8 的 magic number
+  ntptime.NTP_DELTA = 3155673600 # UTC+8 的 magic number
   ntptime.host = host
   count = 1
   if must:
@@ -101,7 +101,7 @@ def tw_ntp(host='clock.stdtime.gov.tw', must=False):
     try:
       ntptime.settime()
     except:
-      time.sleep(1)
+      sleep(1)
       continue
     else:
       return True
