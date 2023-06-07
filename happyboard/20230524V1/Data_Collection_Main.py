@@ -1,4 +1,4 @@
-# 2023/6/7_V1.02, Thomas
+# 2023/6/7_V1.03, Thomas
 
 import machine
 from machine import UART
@@ -200,7 +200,7 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
                     print("password failed")
         elif topic.decode() == (mq_topic + '/commands'):
             if data['commands'] == 'ping':
-                publish_MQTT_claw_data(claw_1, 'pong')
+                publish_MQTT_claw_data(claw_1, 'commandack-pong')
     #       elif data['commands'] == 'getstatus':
 
     except Exception as e:
@@ -234,7 +234,11 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select):  # 可以選擇claw_1、
     if MQTT_API_select == 'sales':
         WCU_Freeplaytimes = (
                     claw_data.Number_of_Total_games - claw_data.Number_of_Original_Payment - claw_data.Number_of_Coin - claw_data.Number_of_Gift_Payment)
-
+        if WCU_Freeplaytimes < 0:
+            WCU_Freeplaytimes = 0
+            # 上行是 Thomas 測試
+        macid = my_internet_data.mac_address
+        mq_topic = macid + '/' + token + '/sales'
         MQTT_claw_data = {
             "Epayplaytimes": claw_data.Number_of_Original_Payment,
             "Coinplaytimes": claw_data.Number_of_Coin,
@@ -244,17 +248,19 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select):  # 可以選擇claw_1、
             "time": utime.time()
         }
     elif MQTT_API_select == 'status':
+        macid = my_internet_data.mac_address
+        mq_topic = macid + '/' + token + '/status'
         MQTT_claw_data = {
             "status": claw_data.Error_Code_of_Machine,
             "time": utime.time()
         }
-    elif MQTT_API_select == 'pong':
+    elif MQTT_API_select == 'commandack-pong':
+        macid = my_internet_data.mac_address
+        mq_topic = macid + '/' + token + '/commandack'
         MQTT_claw_data = {
             "ack": "pong",
             "time": utime.time()
         }
-    macid = my_internet_data.mac_address
-    mq_topic = macid + '/' + token + '/' + MQTT_API_select
     mq_json_str = ujson.dumps(MQTT_claw_data)
     publish_data(mq_client_1, mq_topic, mq_json_str)
 
