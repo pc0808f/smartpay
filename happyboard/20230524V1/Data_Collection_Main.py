@@ -254,7 +254,7 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select):  # 可以選擇claw_1、
         macid = my_internet_data.mac_address
         mq_topic = macid + '/' + token + '/status'
         MQTT_claw_data = {
-            "status": str(claw_data.Error_Code_of_Machine),
+            "status": str(claw_data.Error_Code_of_Machine).zfill(2),
             "time": utime.time()
         }
     elif MQTT_API_select == 'commandack-pong':
