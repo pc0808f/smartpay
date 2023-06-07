@@ -527,6 +527,7 @@ last_time = 0
 main_while_delay_seconds = 1
 while True:
 
+    utime.sleep_ms(100)
     current_time = time.ticks_ms()
     if (time.ticks_diff(current_time, last_time) >= main_while_delay_seconds * 1000):
         last_time = time.ticks_ms()
