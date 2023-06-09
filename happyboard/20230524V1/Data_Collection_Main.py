@@ -8,7 +8,7 @@ import utime, time
 import network
 import ujson
 
-VERSION = "V1.03"
+VERSION = "V1.03a"
 
 # 定義狀態類型
 class MainStatus:
@@ -196,6 +196,7 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
                     with open(otafile, "w") as f:
                         f.write(''.join(data['file_list']))
                     print("otafile 輸出完成，即將重開機...")
+                    publish_MQTT_claw_data(claw_1, 'otaack')
                     machine.reset()
                 else:
                     print("password failed")
@@ -269,6 +270,13 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select):  # 可以選擇claw_1、
         mq_topic = macid + '/' + token + '/commandack'
         MQTT_claw_data = {
             "ack": VERSION,
+            "time": utime.time()
+        }
+    elif MQTT_API_select == 'otaack':
+        macid = my_internet_data.mac_address
+        mq_topic = macid + '/' + token + '/otaack'
+        MQTT_claw_data = {
+            "ack": "OK",
             "time": utime.time()
         }
     mq_json_str = ujson.dumps(MQTT_claw_data)
