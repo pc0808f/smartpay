@@ -8,7 +8,7 @@ import utime, time
 import network
 import ujson
 
-VERSION = "V1.03a"
+VERSION = "V1.03b"
 
 # 定義狀態類型
 class MainStatus:
@@ -559,15 +559,23 @@ while True:
             if mq_client_1 is not None:
                 subscribe_MQTT_claw_topic()
                 now_main_state.transition('MQTT is OK')
+            gc.collect()
+            print(gc.mem_free())
 
         elif now_main_state.state == MainStatus.NONE_FEILOLI:
             print('\n\rnow_main_state: MQTT is OK (FEILOLI UART is not OK), 開機秒數:', current_time / 1000)
+            gc.collect()
+            print(gc.mem_free())
 
         elif now_main_state.state == MainStatus.STANDBY_FEILOLI:
             print('\n\rnow_main_state: FEILOLI UART is OK, 開機秒數:', current_time / 1000)
+            gc.collect()
+            print(gc.mem_free())
 
         elif now_main_state.state == MainStatus.WAITING_FEILOLI:
             print('\n\rnow_main_state: FEILOLI UART is witing, 開機秒數:', current_time / 1000)
+            gc.collect()
+            print(gc.mem_free())
 
         else:
             print('\n\rInvalid action! now_main_state:', now_main_state.state)
