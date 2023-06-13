@@ -8,7 +8,7 @@ import utime, time
 import network
 import ujson
 
-VERSION = "V1.03b"
+VERSION = "V1.03c"
 
 # 定義狀態類型
 class MainStatus:
@@ -31,6 +31,7 @@ class MainStateMachine:
         print('\n\rInit, MainStatus: NONE_WIFI')
         global main_while_delay_seconds
         main_while_delay_seconds = 1
+
 
     def transition(self, action):
         global main_while_delay_seconds
@@ -462,9 +463,14 @@ server_report_sales_counter = 0
 def server_report_timer_callback(timer):
     if now_main_state.state == MainStatus.NONE_FEILOLI or now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI:
 
-        # 更新 MQTT Subscribe
-        mq_client_1.check_msg()
-        mq_client_1.ping()
+
+        try:
+            # 更新 MQTT Subscribe
+            mq_client_1.check_msg()
+            #mq_client_1.ping()
+        except OSError as e:
+            print("WiFi is disconnect")
+            now_main_state.transition('WiFi is disconnect')
 
         global server_report_sales_counter
         server_report_sales_counter = (server_report_sales_counter + 1) % server_report_sales_period
