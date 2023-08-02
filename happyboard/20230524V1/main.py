@@ -122,25 +122,29 @@ if filename in file_list:
     dis.draw_text(spleen16, "OTAing...", 0, 16 + 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
     # dis.draw_text(spleen16, list(wifimgr.read_profiles().keys())[0][:10], 5*8, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
     dis.dev.show()
-    with open(filename) as f:
-        lines = f.readlines()[0].strip()
+    try:
+      with open(filename) as f:
+          lines = f.readlines()[0].strip()
 
-    lines = lines.replace(' ', '')
+      lines = lines.replace(' ', '')
 
-    # 移除字串中的雙引號和空格，然後使用逗號分隔字串
-    file_list = [file.strip('"') for file in lines.split(',')]
+      # 移除字串中的雙引號和空格，然後使用逗號分隔字串
+      file_list = [file.strip('"') for file in lines.split(',')]
 
-    OTA = senko.Senko(
-        user="pc0808f",  # Required
-        repo="happycollector",  # Required
-        branch="alpha",  # Optional: Defaults to "master"
-        working_dir="happyboard/20230524V1",  # Optional: Defaults to "app"
-        files=file_list
-    )
-    if OTA.update():
-        print("Updated to the latest version! Rebooting...")
-        os.remove(filename)
-        machine.reset()
+      OTA = senko.Senko(
+          user="pc0808f",  # Required
+          repo="happycollector",  # Required
+          branch="alpha",  # Optional: Defaults to "master"
+          working_dir="happyboard/20230524V1",  # Optional: Defaults to "app"
+          files=file_list
+      )
+
+      if OTA.update():
+          print("Updated to the latest version! Rebooting...")
+          os.remove(filename)
+          machine.reset()
+    except:
+      print("Updated error! Rebooting...")
     os.remove(filename)
 else:
     dis.draw_text(spleen16, "No OTA", 0, 16 + 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
