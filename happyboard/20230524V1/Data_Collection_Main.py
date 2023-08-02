@@ -198,6 +198,7 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
                         f.write(''.join(data['file_list']))
                     print("otafile 輸出完成，即將重開機...")
                     publish_MQTT_claw_data(claw_1, 'otaack')
+                    time.sleep(3)
                     machine.reset()
                 else:
                     print("password failed")
