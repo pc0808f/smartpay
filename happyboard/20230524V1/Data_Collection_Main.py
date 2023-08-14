@@ -8,7 +8,7 @@ import utime, time
 import network
 import ujson
 
-VERSION = "V1.04b"
+VERSION = "V1.04c"
 
 # 定義狀態類型
 class MainStatus:
@@ -209,12 +209,12 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
                 publish_MQTT_claw_data(claw_1, 'commandack-version')
             elif data['commands'] == 'clawreboot':
                 publish_MQTT_claw_data(claw_1, 'commandack-clawreboot')
-                uart_FEILOLI_send_packet('Send_Machine_reboot')
+                uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Machine_reboot)
             elif data['commands'] == 'clawstartgame':
                 publish_MQTT_claw_data(claw_1, 'commandack-clawstartgame')   
                 epays=['epays'] 
                 freeplays=['freeplays']
-                uart_FEILOLI_send_packet(Send_Starting_once_game)                             
+                uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)                             
     #       elif data['commands'] == 'getstatus':
 
     except Exception as e:
