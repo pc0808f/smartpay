@@ -8,7 +8,7 @@ import utime, time
 import network
 import ujson
 
-VERSION = "V1.04c"
+VERSION = "V1.04d"
 
 # 定義狀態類型
 class MainStatus:
@@ -208,13 +208,24 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
             elif data['commands'] == 'version':
                 publish_MQTT_claw_data(claw_1, 'commandack-version')
             elif data['commands'] == 'clawreboot':
-                publish_MQTT_claw_data(claw_1, 'commandack-clawreboot')
-                uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Machine_reboot)
+                if 'state' in data:
+                    publish_MQTT_claw_data(claw_1, 'commandack-clawreboot',data['state'])
+                    uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Machine_reboot)
+                # else:
+                #     publish_MQTT_claw_data(claw_1, 'commandack-clawreboot')
+                #     uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Machine_reboot)
             elif data['commands'] == 'clawstartgame':
-                publish_MQTT_claw_data(claw_1, 'commandack-clawstartgame')   
-                epays=['epays'] 
-                freeplays=['freeplays']
-                uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)                             
+                if 'state' in data:
+                    publish_MQTT_claw_data(claw_1, 'commandack-clawstartgame',data['state'])
+                    uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Machine_reboot)  
+                    publish_MQTT_claw_data(claw_1, 'commandack-clawstartgame')   
+                    epays=['epays'] 
+                    freeplays=['freeplays']
+                    uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)                                       
+                # publish_MQTT_claw_data(claw_1, 'commandack-clawstartgame')   
+                # epays=['epays'] 
+                # freeplays=['freeplays']
+                # uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)                             
     #       elif data['commands'] == 'getstatus':
 
     except Exception as e:
@@ -244,7 +255,7 @@ def publish_data(mq_client, topic, data):
         now_main_state.transition('MQTT is not OK')
 
 
-def publish_MQTT_claw_data(claw_data, MQTT_API_select):  # 可以選擇claw_1、claw_2、...，但MQTT_client暫時固定為mq_client_1
+def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選擇claw_1、claw_2、...，但MQTT_client暫時固定為mq_client_1
     if MQTT_API_select == 'sales':
         WCU_Freeplaytimes = (
                     claw_data.Number_of_Total_games - claw_data.Number_of_Original_Payment - claw_data.Number_of_Coin - claw_data.Number_of_Gift_Payment)
@@ -292,17 +303,31 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select):  # 可以選擇claw_1、
     elif MQTT_API_select == 'commandack-clawreboot':
         macid = my_internet_data.mac_address
         mq_topic = macid + '/' + token + '/commandack'
-        MQTT_claw_data = {
-            "ack": "OK",
-            "time": utime.time()
-        }
+        if para1=="" :
+            MQTT_claw_data = {
+                "ack": "OK",
+                "time": utime.time()
+            }
+        else :
+            MQTT_claw_data = {
+                "ack": "OK",
+                "state" : para1,
+                "time": utime.time()
+            }            
     elif MQTT_API_select == 'commandack-clawstartgame':
         macid = my_internet_data.mac_address
         mq_topic = macid + '/' + token + '/commandack'
-        MQTT_claw_data = {
-            "ack": "OK",
-            "time": utime.time()
-        }                
+        if para1=="" :
+            MQTT_claw_data = {
+                "ack": "OK",
+                "time": utime.time()
+            }
+        else :
+            MQTT_claw_data = {
+                "ack": "OK",
+                "state" : para1,
+                "time": utime.time()
+            }                   
     mq_json_str = ujson.dumps(MQTT_claw_data)
     publish_data(mq_client_1, mq_topic, mq_json_str)
 
