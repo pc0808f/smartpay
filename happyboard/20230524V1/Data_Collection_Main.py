@@ -194,7 +194,7 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
             if ('file_list' in data) and ('password' in data):
                 if data['password'] == 'c0b82a2c-4b03-42a5-92cd-3478798b2a90':
                     #print("password checked")
-                    publish_MQTT_claw_data(claw_1, 'otaack')                    
+                    publish_MQTT_claw_data(claw_1, 'fotaack')                    
                     with open(otafile, "w") as f:
                         f.write(''.join(data['file_list']))
                     print("otafile 輸出完成，即將重開機...")
@@ -291,9 +291,9 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
             "ack": VERSION,
             "time": utime.time()
         }
-    elif MQTT_API_select == 'otaack':
+    elif MQTT_API_select == 'fotaack':
         macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/otaack'
+        mq_topic = macid + '/' + token + '/fotaack'
         MQTT_claw_data = {
             "ack": "OK",
             "time": utime.time()
