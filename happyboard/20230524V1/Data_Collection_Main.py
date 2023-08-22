@@ -1,6 +1,7 @@
 VERSION = "V1.04f"
 
 import machine
+import binascii
 from machine import UART
 from umqtt.simple import MQTTClient
 import _thread
@@ -33,11 +34,13 @@ class MainStateMachine:
         print('\n\rInit, MainStatus: NONE_WIFI')
         global main_while_delay_seconds
         main_while_delay_seconds = 1
+        unique_id_hex = binascii.hexlify(machine.unique_id()).decode().upper()
+
         dis.fill(color.BLACK)
         dis.draw_text(spleen16, 'Happy Collector', 0, 0, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
         dis.fgcolor = color.RED     # 设置前景颜色为紅色
         dis.bgcolor = color.WHITE   # 设置背景颜色为黑色
-        dis.draw_text(spleen16, '3CE90E4DC6C8', 5, 8 * 16 + 5, 1.3, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) 
+        dis.draw_text(spleen16, unique_id_hex, 5, 8 * 16 + 5, 1.3, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) 
         dis.dev.show()
         dis.fgcolor = color.WHITE   # 设置前景颜色为白色
         dis.bgcolor = color.BLACK   # 设置背景颜色为黑色
