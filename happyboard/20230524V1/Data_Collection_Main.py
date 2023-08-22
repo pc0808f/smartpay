@@ -179,7 +179,7 @@ class InternetData:
 
 
 def connect_mqtt():
-    mq_server = '172.104.127.68'
+    mq_server = 'happycollect.propskynet.com'
     mq_id = my_internet_data.mac_address
     mq_user = 'myuser'
     mq_pass = 'propskymqtt'
