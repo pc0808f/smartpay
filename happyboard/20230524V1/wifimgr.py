@@ -2,9 +2,16 @@ import network
 import socket
 import ure
 import time
+import binascii
+import machine
 
-ap_ssid = "WifiManager"
-ap_password = "tayfunulu"
+
+unique_id_hex = binascii.hexlify(machine.unique_id()[-3:]).decode().upper()
+ap_ssid = "HappyWifi" + unique_id_hex
+ap_password = "happywifi"
+
+# ap_ssid = "WifiManager"
+# ap_password = "tayfunulu"
 ap_authmode = 3  # WPA2
 
 NETWORK_PROFILES = 'wifi.dat'
