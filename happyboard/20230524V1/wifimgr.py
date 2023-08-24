@@ -30,8 +30,8 @@ def get_connection():
         return wlan_sta
 
     connected = False
-    max_retries = 5  # Maximum number of connection retries
-    retry_delay_range = (1, 10)  # Range of delay in seconds between retries
+    max_retries = 999999  # Maximum number of connection retries
+    retry_delay_range = (5, 15)  # Range of delay in seconds between retries
 
     for _ in range(max_retries):
         try:
