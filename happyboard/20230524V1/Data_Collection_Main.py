@@ -10,6 +10,7 @@ import network
 import ujson
 from dr.st7735.st7735_4bit import ST7735
 from machine import SPI, Pin
+import gc
 
 #Based on 2023/8/17_V1.04e, Sam
 
