@@ -4,7 +4,7 @@ import ure
 import time
 import binascii
 import machine
-
+import random
 
 unique_id_hex = binascii.hexlify(machine.unique_id()[-3:]).decode().upper()
 ap_ssid = "HappyWifi" + unique_id_hex
@@ -30,44 +30,57 @@ def get_connection():
         return wlan_sta
 
     connected = False
-    try:
-        # ESP connecting to WiFi takes time, wait a bit and try again:
-        time.sleep(3)
-        if wlan_sta.isconnected():
-            return wlan_sta
+    max_retries = 5  # Maximum number of connection retries
+    retry_delay_range = (1, 10)  # Range of delay in seconds between retries
 
-        # Read known network profiles from file
-        profiles = read_profiles()
-
-        # Search WiFis in range
-        wlan_sta.active(True)
-        networks = wlan_sta.scan()
-
-        AUTHMODE = {0: "open", 1: "WEP", 2: "WPA-PSK", 3: "WPA2-PSK", 4: "WPA/WPA2-PSK"}
-        for ssid, bssid, channel, rssi, authmode, hidden in sorted(networks, key=lambda x: x[3], reverse=True):
-            ssid = ssid.decode('utf-8')
-            encrypted = authmode > 0
-            print("ssid: %s chan: %d rssi: %d authmode: %s" % (ssid, channel, rssi, AUTHMODE.get(authmode, '?')))
-            if encrypted:
-                if ssid in profiles:
-                    password = profiles[ssid]
-                    connected = do_connect(ssid, password)
-                else:
-                    print("skipping unknown encrypted network")
-            else:  # open
-                connected = do_connect(ssid, None)
-            if connected:
+    for _ in range(max_retries):
+        try:
+            # ESP connecting to WiFi takes time, wait a bit before retrying:
+            time.sleep(random.randint(*retry_delay_range))
+            
+            # Check if already connected after the wait
+            if wlan_sta.isconnected():
+                connected = True
                 break
+            
+            # Read known network profiles from file
+            profiles = read_profiles()
+            
+            # print(profiles)
 
-    except OSError as e:
-        print("exception", str(e))
+            # Search WiFis in range
+            wlan_sta.active(True)
+            networks = wlan_sta.scan()
 
-    # start web server for connection manager:
+            AUTHMODE = {0: "open", 1: "WEP", 2: "WPA-PSK", 3: "WPA2-PSK", 4: "WPA/WPA2-PSK"}
+            for ssid, bssid, channel, rssi, authmode, hidden in sorted(networks, key=lambda x: x[3], reverse=True):
+                ssid = ssid.decode('utf-8')
+                encrypted = authmode > 0
+                # print("ssid: %s chan: %d rssi: %d authmode: %s" % (ssid, channel, rssi, AUTHMODE.get(authmode, '?')))
+                if encrypted:
+                    if ssid in profiles:
+                        password = profiles[ssid]
+                        connected = do_connect(ssid, password)
+                    else:
+                        print("skipping unknown encrypted network")
+                else:  # open
+                    connected = do_connect(ssid, None)
+                if connected:
+                    break
+
+        except OSError as e:
+            print("exception", str(e))
+
+        if connected:
+            break
+        
+        print("no wifi try again")
+
+    # If still not connected, start web server for connection manager:
     if not connected:
         connected = start()
 
     return wlan_sta if connected else None
-
 
 def read_profiles():
     with open(NETWORK_PROFILES) as f:
@@ -305,3 +318,4 @@ def start(port=80):
 
         finally:
             client.close()
+
