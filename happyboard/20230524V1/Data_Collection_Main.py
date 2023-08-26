@@ -285,7 +285,7 @@ def publish_data(mq_client, topic, data):
 
 def get_file_info(filename):
     try:
-        file_stat = uos.stat(filename)
+        file_stat = os.stat(filename)
         file_size = file_stat[6]  # Index 6 is the file size
         file_mtime = file_stat[8]  # Index 8 is the modification time
         return file_size, file_mtime
