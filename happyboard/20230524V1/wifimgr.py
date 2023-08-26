@@ -50,7 +50,7 @@ def get_connection():
 
             # Search WiFis in range
             wlan_sta.active(True)
-#            networks = wlan_sta.scan()
+            networks = wlan_sta.scan()
 
 #             AUTHMODE = {0: "open", 1: "WEP", 2: "WPA-PSK", 3: "WPA2-PSK", 4: "WPA/WPA2-PSK"}
 #             for ssid, bssid, channel, rssi, authmode, hidden in sorted(networks, key=lambda x: x[3], reverse=True):
@@ -67,7 +67,7 @@ def get_connection():
 #                     connected = do_connect(ssid, None)
 #                 if connected:
 #                     break
-            do_connect(profiles["name"], profiles[profiles["name"]])
+            connected = do_connect(profiles["name"], profiles[profiles["name"]])
 
         except OSError as e:
             print("exception", str(e))
