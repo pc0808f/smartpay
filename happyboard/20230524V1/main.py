@@ -137,6 +137,12 @@ file_list = os.listdir()
 print(file_list)
 # 檢查檔案是否存在
 if filename in file_list:
+    # 在這邊要做讀取OTA列表，然後進行OTA的執行
+    print("OTA檔案存在")
+    dis.draw_text(spleen16, "OTAing...", 0, 16 + 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    # dis.draw_text(spleen16, list(wifimgr.read_profiles().keys())[0][:10], 5*8, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.dev.show()
+
     try:
       with open(filename) as f:
           lines = f.readlines()[0].strip()
