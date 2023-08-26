@@ -50,23 +50,24 @@ def get_connection():
 
             # Search WiFis in range
             wlan_sta.active(True)
-            networks = wlan_sta.scan()
+#            networks = wlan_sta.scan()
 
-            AUTHMODE = {0: "open", 1: "WEP", 2: "WPA-PSK", 3: "WPA2-PSK", 4: "WPA/WPA2-PSK"}
-            for ssid, bssid, channel, rssi, authmode, hidden in sorted(networks, key=lambda x: x[3], reverse=True):
-                ssid = ssid.decode('utf-8')
-                encrypted = authmode > 0
-                # print("ssid: %s chan: %d rssi: %d authmode: %s" % (ssid, channel, rssi, AUTHMODE.get(authmode, '?')))
-                if encrypted:
-                    if ssid in profiles:
-                        password = profiles[ssid]
-                        connected = do_connect(ssid, password)
-                    else:
-                        print("skipping unknown encrypted network")
-                else:  # open
-                    connected = do_connect(ssid, None)
-                if connected:
-                    break
+#             AUTHMODE = {0: "open", 1: "WEP", 2: "WPA-PSK", 3: "WPA2-PSK", 4: "WPA/WPA2-PSK"}
+#             for ssid, bssid, channel, rssi, authmode, hidden in sorted(networks, key=lambda x: x[3], reverse=True):
+#                 ssid = ssid.decode('utf-8')
+#                 encrypted = authmode > 0
+#                 # print("ssid: %s chan: %d rssi: %d authmode: %s" % (ssid, channel, rssi, AUTHMODE.get(authmode, '?')))
+#                 if encrypted:
+#                     if ssid in profiles:
+#                         password = profiles[ssid]
+#                         connected = do_connect(ssid, password)
+#                     else:
+#                         print("skipping unknown encrypted network")
+#                 else:  # open
+#                     connected = do_connect(ssid, None)
+#                 if connected:
+#                     break
+            do_connect(profiles["name"], profiles[profiles["name"]])
 
         except OSError as e:
             print("exception", str(e))
@@ -89,6 +90,7 @@ def read_profiles():
     for line in lines:
         ssid, password = line.strip("\n").split(";")
         profiles[ssid] = password
+        profiles["name"] = ssid
     return profiles
 
 
@@ -103,7 +105,7 @@ def write_profiles(profiles):
 def do_connect(ssid, password):
     wlan_sta.active(True)
     if wlan_sta.isconnected():
-        return None
+        return None 
     print('Trying to connect to %s...' % ssid)
     wlan_sta.connect(ssid, password)
     for retry in range(200):
@@ -118,7 +120,6 @@ def do_connect(ssid, password):
     else:
         print('\nFailed. Not Connected to: ' + ssid)
     return connected
-
 
 def send_header(client, status_code=200, content_length=None ):
     client.sendall("HTTP/1.0 {} OK\r\n".format(status_code))

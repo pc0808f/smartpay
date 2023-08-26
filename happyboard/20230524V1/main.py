@@ -7,6 +7,8 @@ import senko
 import os
 from dr.st7735.st7735_4bit import ST7735
 from machine import SPI, Pin
+from machine import WDT
+
 
 import ntptime
 
@@ -18,6 +20,7 @@ CP = Pin(0, Pin.OUT)
 CE = Pin(0, Pin.OUT)
 PL = Pin(32, Pin.OUT)
 Q7 = Pin(33, Pin.IN)
+ 
 
 try:
     import usocket as socket
@@ -66,11 +69,28 @@ print(gc.mem_free())
 #     dis.draw_text(spleen16, 'need setup wifi..', 0, 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
 # dis.dev.show()
 
+def get_wifi_signal_strength(wlan):
+    if wlan.isconnected():
+        signal_strength = wlan.status('rssi')
+        return signal_strength
+    else:
+        return None
+
+sleep(3)
+wdt=WDT(timeout=1000*60*5) 
+
 wlan = wifimgr.get_connection()
 if wlan is None:
     print("Could not initialize the network connection.")
     while True:
         pass  # you shall not pass :D
+
+
+signal_strength = get_wifi_signal_strength(wlan)
+if signal_strength is not None:
+    print("WiFi Signal Strength:", signal_strength, "dBm")
+else:
+    print("Unable to retrieve signal strength.")
 
 # Main Code goes here, wlan is a working network.WLAN(STA_IF) instance.
 print("ESP OK")
@@ -91,7 +111,7 @@ def tw_ntp(host='clock.stdtime.gov.tw', must=False):
     clock.stdtime.gov.tw
     tick.stdtime.gov.tw
   must: 是否非對到不可
-  """
+  """ 
   ntptime.NTP_DELTA = 3155673600 # UTC+8 的 magic number
   ntptime.host = host
   count = 1
@@ -107,7 +127,7 @@ def tw_ntp(host='clock.stdtime.gov.tw', must=False):
       return True
   return False
 
-tw_ntp()
+tw_ntp(must=True)
 
 # 檔案名稱
 filename = 'otalist.dat'
@@ -117,11 +137,6 @@ file_list = os.listdir()
 print(file_list)
 # 檢查檔案是否存在
 if filename in file_list:
-    # 在這邊要做讀取OTA列表，然後進行OTA的執行
-    print("OTA檔案存在")
-    dis.draw_text(spleen16, "OTAing...", 0, 16 + 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
-    # dis.draw_text(spleen16, list(wifimgr.read_profiles().keys())[0][:10], 5*8, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
-    dis.dev.show()
     try:
       with open(filename) as f:
           lines = f.readlines()[0].strip()
@@ -155,13 +170,14 @@ else:
 print("ESP OTA OK")
 
 while True:
-    for i in range(9, 0, -1):
+    for i in range(3, 0, -1):
         dis.draw_text(spleen16, "CountDown..." + str(i), 0, 16 + 16 + 16, 1, dis.fgcolor, color.BLACK, -1, True, 0, 0)
         # dis.draw_text(spleen16, list(wifimgr.read_profiles().keys())[0][:10], 5*8, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
         dis.dev.show()
         sleep(1)
 
     try:
+        st7735=""
         del dis
         del color
         del st7735
@@ -176,5 +192,10 @@ while True:
     gc.collect()
     print(gc.mem_free())
     execfile('Data_Collection_Main.py')
-
+#     try:
+#         print("執行Data_Collection_Main.mpy...")
+#         __import__('Data_Collection_Main.mpy')
+#     except:
+#         print("執行失敗，改跑Data_Collection_Main.py")
+#         execfile('Data_Collection_Main.py')
 

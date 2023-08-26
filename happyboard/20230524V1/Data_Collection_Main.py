@@ -1,4 +1,4 @@
-VERSION = "V1.04g"
+VERSION = "V1.05a"
 
 import machine
 import binascii
@@ -11,8 +11,11 @@ import ujson
 from dr.st7735.st7735_4bit import ST7735
 from machine import SPI, Pin
 import gc
+from machine import WDT
+import os
 
 #Based on 2023/8/17_V1.04f, Sam
+#V1.05a 新增 fileinfo 和 file remove api main.py Data_Collection_main.py wifimgr.py senko.py
 
 # 定義狀態類型
 class MainStatus:
@@ -140,7 +143,16 @@ def load_token():
             time.sleep(30)
 
 
+def get_wifi_signal_strength(wlan):
+    if wlan.isconnected():
+        signal_strength = wlan.status('rssi')
+        return signal_strength
+    else:
+        return None
+
+
 def connect_wifi():
+    global wifi
     wifi = network.WLAN(network.STA_IF)
 
     if not wifi.config('essid'):
@@ -237,11 +249,14 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
                     publish_MQTT_claw_data(claw_1, 'commandack-clawstartgame',data['state'])
                     epays=data['epays'] 
                     freeplays=data['freeplays']
-                    uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)                                       
-                # publish_MQTT_claw_data(claw_1, 'commandack-clawstartgame')   
-                # epays=['epays'] 
-                # freeplays=['freeplays']
-                # uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)                             
+                    uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)
+            elif data['commands'] == 'fileinfo':
+                publish_MQTT_claw_data(claw_1, 'commandack-fileinfo',data['filename'])
+                pass
+            elif data['commands'] == 'fileremove':
+                publish_MQTT_claw_data(claw_1, 'commandack-fileremove',data['filename'])
+                pass
+
     #       elif data['commands'] == 'getstatus':
 
     except Exception as e:
@@ -268,7 +283,17 @@ def publish_data(mq_client, topic, data):
         print("MQTT Publish Error:", e)
         now_main_state.transition('MQTT is not OK')
 
+def get_file_info(filename):
+    try:
+        file_stat = uos.stat(filename)
+        file_size = file_stat[6]  # Index 6 is the file size
+        file_mtime = file_stat[8]  # Index 8 is the modification time
+        return file_size, file_mtime
+    except OSError:
+        return None, None
+
 def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選擇claw_1、claw_2、...，但MQTT_client暫時固定為mq_client_1
+    global wifi
     if MQTT_API_select == 'sales':
         WCU_Freeplaytimes = (
                     claw_data.Number_of_Total_games - claw_data.Number_of_Original_Payment - claw_data.Number_of_Coin - claw_data.Number_of_Gift_Payment)
@@ -286,10 +311,12 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
             "time": utime.time()
         }
     elif MQTT_API_select == 'status':
+        signal_strength = get_wifi_signal_strength(wifi)
         macid = my_internet_data.mac_address
         mq_topic = macid + '/' + token + '/status'
         MQTT_claw_data = {
             "status": "%02d" % (claw_data.Error_Code_of_Machine),
+            "wifirssi": signal_strength,
             "time":   utime.time()
         }
     elif MQTT_API_select == 'commandack-pong':
@@ -340,7 +367,99 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
                 "ack": "OK",
                 "state" : para1,
                 "time": utime.time()
-            }                   
+            }
+    elif MQTT_API_select == 'commandack-fileinfo':
+        #check file exist
+        #read file info
+        file_name = para1
+        file_exist=0
+        file_date=""
+        file_size=0
+        try:
+            file_stat = os.stat(file_name)
+            file_size, file_mtime = get_file_info(file_name)
+            if file_size is not None:
+                #print("File Size:", file_size, "bytes")
+
+                if file_mtime is not None:
+                    formatted_date = utime.localtime(file_mtime)
+                    formatted_date_str = "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}".format(
+                        formatted_date[0], formatted_date[1], formatted_date[2],
+                        formatted_date[3], formatted_date[4], formatted_date[5]
+                    )
+                    file_date=formatted_date_str
+                    file_exist=1
+                    #print("File Date:", formatted_date_str)
+                else:
+                    file_exist=2
+                    formatted_date_str="N/A"
+                    #print("File Date: N/A")
+            else:
+                #print("Unable to retrieve file information.")
+                file_exist=80
+        except OSError:
+            #print("File does not exist.")
+            file_exist=0
+        
+        macid = my_internet_data.mac_address
+        mq_topic = macid + '/' + token + '/commandack'
+        MQTT_claw_data = {
+            "ack": "OK",
+            "exist" : file_exist,
+            "date" : file_date,
+            "size" : file_size,
+            "time": utime.time()
+        }             
+#         if para1=="" :
+#             MQTT_claw_data = {
+#                 "ack": "OK",
+#                 "time": utime.time()
+#             }
+#         else :
+#             MQTT_claw_data = {
+#                 "ack": "OK",
+#                 "state" : para1,
+#                 "time": utime.time()
+#             }
+    elif MQTT_API_select == 'commandack-fileremove':
+        #check file exist
+        #yes remove it, reply remove ok
+        #no reply no file
+        file_name = para1
+        result=""
+        try:
+            file_stat = os.stat(file_name)
+            if file_name != "main.py":
+                os.remove(para1)
+                result="remove ok"
+            else:
+                result="CAN NOT REMOVE main.py"
+
+        except OSError:
+            #print("File does not exist.")
+            file_exist=0
+            result="NO FILE!" 
+        
+        macid = my_internet_data.mac_address
+        mq_topic = macid + '/' + token + '/commandack'
+        MQTT_claw_data = {
+            "ack": "OK",
+            "result" : result,
+            "time": utime.time()
+        }           
+#         macid = my_internet_data.mac_address
+#         mq_topic = macid + '/' + token + '/commandack'
+#         if para1=="" :
+#             MQTT_claw_data = {
+#                 "ack": "OK",
+#                 "time": utime.time()
+#             }
+#         else :
+#             MQTT_claw_data = {
+#                 "ack": "OK",
+#                 "state" : para1,
+#                 "time": utime.time()
+#             }               
     mq_json_str = ujson.dumps(MQTT_claw_data)
     publish_data(mq_client_1, mq_topic, mq_json_str)
 
@@ -453,7 +572,7 @@ def uart_FEILOLI_send_packet(FEILOLI_cmd):
         for i in range(2, 14):
             uart_send_packet[15] ^= uart_send_packet[i]
         uart_FEILOLI.write(uart_send_packet)
-        print("Sent packet to 娃娃機:    ", uart_send_packet)
+        print("Sent packet to 娃娃機:    ", ''.join(['{:02X} '.format(byte) for byte in uart_send_packet]))
     else:
         print("FEILOLI_cmd 是無效的指令:", FEILOLI_cmd)
 
@@ -507,12 +626,13 @@ def uart_FEILOLI_recive_packet_task():
                 print("佇列收到無法對齊的封包:", bytearray(uart_recive_packet))
         utime.sleep_ms(100)                         # 休眠一小段時間，避免過度使用CPU資源
 
-server_report_sales_period = 3 * 60  # 3分鐘 = 3*60 單位秒
+server_report_sales_period = 3*60  # 3分鐘 = 3*60 單位秒
 # server_report_sales_period = 10   # For快速測試
 server_report_sales_counter = 0
-
+ 
 # 定義server_report計時器回調函式 (每1秒執行1次)
 def server_report_timer_callback(timer):
+    global wdt
     if now_main_state.state == MainStatus.NONE_FEILOLI or now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI:
         try:
             # 更新 MQTT Subscribe
@@ -525,7 +645,10 @@ def server_report_timer_callback(timer):
         global server_report_sales_counter
         server_report_sales_counter = (server_report_sales_counter + 1) % server_report_sales_period
         if server_report_sales_counter == 0:
-            publish_MQTT_claw_data(claw_1, 'sales')
+        
+            wdt.feed()
+            if now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI :
+                publish_MQTT_claw_data(claw_1, 'sales')
             # if claw_1.Error_Code_of_Machine != 0x00 :
             publish_MQTT_claw_data(claw_1, 'status')
 
@@ -559,6 +682,8 @@ def claw_check_timer_callback(timer):
 
 # 開啟 token 檔案
 load_token()
+
+wdt=WDT(timeout=1000*60*10)
 
 # LCD配置
 LCD_EN = machine.Pin(27, machine.Pin.OUT)

@@ -1,6 +1,7 @@
 import urequests
 import uhashlib
-
+import gc
+from time import sleep
 
 class Senko:
     raw = "https://raw.githubusercontent.com"
@@ -36,9 +37,14 @@ class Senko:
             return False
 
     def _get_file(self, url):
+        #print(url)
+        gc.collect()
+        #print(gc.mem_free())
         payload = urequests.get(url, headers=self.headers)
         code = payload.status_code
-
+        #print("read ok  "+url)
+        gc.collect()
+        #print(gc.mem_free())
         if code == 200:
             return payload.text
         else:
@@ -48,7 +54,11 @@ class Senko:
         changes = []
 
         for file in self.files:
-            latest_version = self._get_file(self.url + "/" + file)
+            while(gc.mem_free()<60000):
+                gc.collect()
+                print(gc.mem_free())
+                sleep(1)
+            latest_version = self._get_file(self.url + "/" + file)            
             if latest_version is None:
                 continue
 
@@ -60,6 +70,8 @@ class Senko:
 
             if not self._check_hash(latest_version, local_version):
                 changes.append(file)
+            latest_version=""
+            local_version = ""
 
         return changes
 
@@ -81,10 +93,13 @@ class Senko:
             True - if changes were made, False - if not.
         """
         changes = self._check_all()
-
+        #print(changes)
+        gc.collect()
+        #print(gc.mem_free())
         for file in changes:
             with open(file, "w") as local_file:
                 local_file.write(self._get_file(self.url + "/" + file))
+            
 
         if changes:
             return True
