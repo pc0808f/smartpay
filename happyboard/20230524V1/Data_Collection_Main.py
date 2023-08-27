@@ -680,6 +680,9 @@ def claw_check_timer_callback(timer):
 
 ############################################# 初始化 #############################################
 
+print('\n\r開始執行Data_Collection_Main初始化，版本為:', VERSION)
+print('開機秒數:', time.ticks_ms() / 1000)
+
 # 開啟 token 檔案
 load_token()
 
