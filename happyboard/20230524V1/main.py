@@ -197,11 +197,10 @@ while True:
         pass
     gc.collect()
     print(gc.mem_free())
-    execfile('Data_Collection_Main.py')
-#     try:
-#         print("執行Data_Collection_Main.mpy...")
-#         __import__('Data_Collection_Main.mpy')
-#     except:
-#         print("執行失敗，改跑Data_Collection_Main.py")
-#         execfile('Data_Collection_Main.py')
+    try:
+        print("執行Data_Collection_Main.py...")
+        execfile('Data_Collection_Main.py')
+    except:
+        print("執行失敗，改跑Data_Collection_Main.mpy")
+        import__('Data_Collection_Main.mpy')     
 
