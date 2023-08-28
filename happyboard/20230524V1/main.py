@@ -202,5 +202,5 @@ while True:
         execfile('Data_Collection_Main.py')
     except:
         print("執行失敗，改跑Data_Collection_Main.mpy")
-        import__('Data_Collection_Main.mpy')     
+        __import__('Data_Collection_Main.mpy')     
 
