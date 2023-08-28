@@ -1,4 +1,4 @@
-VERSION = "V1.05a"
+VERSION = "V1.05b"
 
 import machine
 import binascii
@@ -686,20 +686,33 @@ print('開機秒數:', time.ticks_ms() / 1000)
 # 開啟 token 檔案
 load_token()
 
+print('1開機秒數:', time.ticks_ms() / 1000)
+
+
 wdt=WDT(timeout=1000*60*10)
 
-# LCD配置
-LCD_EN = machine.Pin(27, machine.Pin.OUT)
-LCD_EN.value(1)
-spi = SPI(1, baudrate=20000000, polarity=0, phase=0, sck=Pin(14), mosi=Pin(13))
-st7735 = ST7735(spi, 4, 15, None, 128, 160, rotate=0)
-st7735.initb2()
-st7735.setrgb(True)
-from gui.colors import colors
-color = colors(st7735)
-from dr.display import display
-import fonts.spleen16 as spleen16
-dis = display(st7735, 'ST7735_FB', color.WHITE, color.BLUE)
+print('2開機秒數:', time.ticks_ms() / 1000)
+
+try:
+    # LCD配置
+    LCD_EN = machine.Pin(27, machine.Pin.OUT)
+    LCD_EN.value(1)
+    spi = SPI(1, baudrate=20000000, polarity=0, phase=0, sck=Pin(14), mosi=Pin(13))
+    gc.collect()
+    sleep(1)
+    st7735 = ST7735(spi, 4, 15, None, 128, 160, rotate=0)
+    st7735.initb2()
+    st7735.setrgb(True)
+    from gui.colors import colors
+    color = colors(st7735)
+    from dr.display import display
+    import fonts.spleen16 as spleen16
+    dis = display(st7735, 'ST7735_FB', color.WHITE, color.BLUE)
+except:
+    print('st7735 Error')
+    machine.reset()
+
+print('3開機秒數:', time.ticks_ms() / 1000)
 
 # 創建狀態機
 now_main_state = MainStateMachine()
@@ -791,3 +804,4 @@ while True:
     formatted_time = "{:02d}/{:02d} {:02d}:{:02d}".format(local_time[1], local_time[2], local_time[3], local_time[4])
     dis.draw_text(spleen16,  formatted_time, 5 * 8, 6 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)    #顯示時間
     dis.dev.show()
+
