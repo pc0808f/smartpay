@@ -1,4 +1,4 @@
-VERSION = "V1.05c"
+VERSION = "V1.05d"
 
 import machine
 import binascii
@@ -626,7 +626,7 @@ def uart_FEILOLI_recive_packet_task():
                 print("佇列收到無法對齊的封包:", bytearray(uart_recive_packet))
         utime.sleep_ms(100)                         # 休眠一小段時間，避免過度使用CPU資源
 
-server_report_sales_period = 3*60  # 3分鐘 = 3*60 單位秒
+server_report_sales_period = 15  # 3分鐘 = 3*60 單位秒
 # server_report_sales_period = 10   # For快速測試
 server_report_sales_counter = 0
  
@@ -804,4 +804,5 @@ while True:
     formatted_time = "{:02d}/{:02d} {:02d}:{:02d}".format(local_time[1], local_time[2], local_time[3], local_time[4])
     dis.draw_text(spleen16,  formatted_time, 5 * 8, 6 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)    #顯示時間
     dis.dev.show()
+    wdt.feed()
 
