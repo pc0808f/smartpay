@@ -1,4 +1,4 @@
-VERSION = "V1.05b"
+VERSION = "V1.05c"
 
 import machine
 import binascii
@@ -699,7 +699,7 @@ try:
     LCD_EN.value(1)
     spi = SPI(1, baudrate=20000000, polarity=0, phase=0, sck=Pin(14), mosi=Pin(13))
     gc.collect()
-    sleep(1)
+    time.sleep(1)
     st7735 = ST7735(spi, 4, 15, None, 128, 160, rotate=0)
     st7735.initb2()
     st7735.setrgb(True)
