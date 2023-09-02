@@ -1,4 +1,4 @@
-VERSION = "V1.05e"
+VERSION = "V1.05f"
 
 import machine
 import binascii
@@ -767,8 +767,11 @@ while True:
             print('now_main_state: Internet is OK, 開機秒數:', current_time / 1000)
             mq_client_1 = connect_mqtt()
             if mq_client_1 is not None:
-                subscribe_MQTT_claw_topic()
-                now_main_state.transition('MQTT is OK')
+                try:
+                    subscribe_MQTT_claw_topic()
+                    now_main_state.transition('MQTT is OK')
+                except:
+                    print('MQTT subscription has failed')
             gc.collect()
             print(gc.mem_free())
 
