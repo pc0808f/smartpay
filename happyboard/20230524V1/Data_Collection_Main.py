@@ -1,4 +1,4 @@
-VERSION = "V1.05b"
+VERSION = "V1.05e"
 
 import machine
 import binascii
@@ -36,7 +36,7 @@ class MainStateMachine:
         self.state = MainStatus.NONE_WIFI
         # 以下執行"狀態機初始化"相應的操作
         print('\n\rInit, MainStatus: NONE_WIFI')
-        global main_while_delay_seconds
+        global main_while_delay_seconds, dis
         main_while_delay_seconds = 1
         unique_id_hex = binascii.hexlify(machine.unique_id()).decode().upper()
 
@@ -58,7 +58,7 @@ class MainStateMachine:
         dis.dev.show()
 
     def transition(self, action):
-        global main_while_delay_seconds
+        global main_while_delay_seconds, dis
         if action == 'WiFi is disconnect':
             self.state = MainStatus.NONE_WIFI
             # 以下執行"未連上WiFi後"相應的操作
@@ -584,7 +584,7 @@ uart_FEILOLI_rx_queue = []
 
 # 從佇列中讀取資料的任務
 def uart_FEILOLI_recive_packet_task():
-    global claw_1
+    global claw_1, uart_FEILOLI
     while True:
         if uart_FEILOLI.any():
             receive_data = uart_FEILOLI.readline()
@@ -632,7 +632,7 @@ server_report_sales_counter = 0
  
 # 定義server_report計時器回調函式 (每1秒執行1次)
 def server_report_timer_callback(timer):
-    global wdt
+    global wdt, mq_client_1
     if now_main_state.state == MainStatus.NONE_FEILOLI or now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI:
         try:
             # 更新 MQTT Subscribe
@@ -641,6 +641,8 @@ def server_report_timer_callback(timer):
         except OSError as e:
             print("WiFi is disconnect")
             now_main_state.transition('WiFi is disconnect')
+            mq_client_1.disconnect()
+            return
 
         global server_report_sales_counter
         server_report_sales_counter = (server_report_sales_counter + 1) % server_report_sales_period
