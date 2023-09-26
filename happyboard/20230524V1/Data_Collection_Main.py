@@ -1,4 +1,4 @@
-VERSION = "V1.05f"
+VERSION = "V1.06a"
 
 import machine
 import binascii
@@ -14,8 +14,12 @@ import gc
 from machine import WDT
 import os
 
-#Based on 2023/8/17_V1.04f, Sam
-#V1.05a 新增 fileinfo 和 file remove api main.py Data_Collection_main.py wifimgr.py senko.py
+#Based on 2023/8/17_V1.05f, Sam
+# 2023/9/26_V1.06a Thomas 
+#  1. 修改LCM顯示機制，統一Timer讀Flag
+#  2. 刪除mpy、otatest
+#  3. 改成開機後 MQTT第一次是 30秒就計數達標
+#  4. 修正MQTT status沒連到娃娃機會送99
 
 # 定義狀態類型
 class MainStatus:
@@ -36,67 +40,47 @@ class MainStateMachine:
         self.state = MainStatus.NONE_WIFI
         # 以下執行"狀態機初始化"相應的操作
         print('\n\rInit, MainStatus: NONE_WIFI')
-        global main_while_delay_seconds, dis
+        global main_while_delay_seconds, LCD_update_flag
         main_while_delay_seconds = 1
-        unique_id_hex = binascii.hexlify(machine.unique_id()).decode().upper()
-
-        dis.fill(color.BLACK)
-        dis.draw_text(spleen16, 'Happy Collector', 0, 0, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
-        dis.fgcolor = color.RED     # 设置前景颜色为紅色
-        dis.bgcolor = color.WHITE   # 设置背景颜色为黑色
-        dis.draw_text(spleen16, unique_id_hex, 5, 8 * 16 + 5, 1.3, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) 
-        dis.dev.show()
-        dis.fgcolor = color.WHITE   # 设置前景颜色为白色
-        dis.bgcolor = color.BLACK   # 设置背景颜色为黑色
-        dis.draw_text(spleen16, 'IN:--------', 0, 1 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
-        dis.draw_text(spleen16, 'OUT:--------', 0, 2 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
-        dis.draw_text(spleen16, 'EP:--------', 0, 3 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
-        dis.draw_text(spleen16, 'FP:--------', 0, 4 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
-        dis.draw_text(spleen16, 'ST:--', 0, 5 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
-        dis.draw_text(spleen16, 'Time:mm/dd hh:mm', 0, 6 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
-        dis.draw_text(spleen16, 'Wifi:-----', 0, 7 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0) 
-        dis.dev.show()
+        LCD_update_flag['Uniform'] = True
 
     def transition(self, action):
-        global main_while_delay_seconds, dis
+        global main_while_delay_seconds, LCD_update_flag
         if action == 'WiFi is disconnect':
             self.state = MainStatus.NONE_WIFI
             # 以下執行"未連上WiFi後"相應的操作
             print('\n\rAction: WiFi is disconnect, MainStatus: NONE_WIFI')
             main_while_delay_seconds = 1
-            dis.draw_text(spleen16, 'dis  ', 5 * 8, 7 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示wifi和MQTT狀態
-            dis.dev.show()
+            LCD_update_flag['WiFi'] = True
 
         elif self.state == MainStatus.NONE_WIFI and action == 'WiFi is OK':
             self.state = MainStatus.NONE_INTERNET
             # 以下執行"連上WiFi後"相應的操作
             print('\n\rAction: WiFi is OK, MainStatus: NONE_INTERNET')
             main_while_delay_seconds = 1
-            dis.draw_text(spleen16, 'dis  ', 5 * 8, 7 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示wifi和MQTT狀態
-            dis.dev.show()
+            LCD_update_flag['WiFi'] = True
 
         elif self.state == MainStatus.NONE_INTERNET and action == 'Internet is OK':
             self.state = MainStatus.NONE_MQTT
             # 以下執行"連上Internet後"相應的操作
             print('\n\rAction: Internet is OK, MainStatus: NONE_MQTT')
             main_while_delay_seconds = 1
-            dis.draw_text(spleen16, 'error', 5 * 8, 7 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示wifi和MQTT狀態
-            dis.dev.show()
+            LCD_update_flag['WiFi'] = True
 
         elif self.state == MainStatus.NONE_MQTT and action == 'MQTT is OK':
             self.state = MainStatus.NONE_FEILOLI
             # 以下執行"連上MQTT後"相應的操作
             print('\n\rAction: MQTT is OK, MainStatus: NONE_FEILOLI')
             main_while_delay_seconds = 10
-            dis.draw_text(spleen16, 'ok   ', 5 * 8, 7 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示wifi和MQTT狀態
-            dis.draw_text(spleen16,  "%02d" % 99, 3 * 8, 5 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示娃娃機狀態
-            dis.dev.show()
+            LCD_update_flag['WiFi'] = True
+            LCD_update_flag['Claw_State'] = True
 
         elif (self.state == MainStatus.NONE_FEILOLI or self.state == MainStatus.WAITING_FEILOLI) and action == 'FEILOLI UART is OK':
             self.state = MainStatus.STANDBY_FEILOLI
             # 以下執行"連上FEILOLI娃娃機後"相應的操作
             print('\n\rAction: FEILOLI UART is OK, MainStatus: STANDBY_FEILOLI')
             main_while_delay_seconds = 10
+            LCD_update_flag['Claw_State'] = True
 
         elif self.state == MainStatus.STANDBY_FEILOLI and action == 'FEILOLI UART is waiting':
             self.state = MainStatus.WAITING_FEILOLI
@@ -109,16 +93,14 @@ class MainStateMachine:
             # 以下執行"等待失敗後"相應的操作
             print('\n\rAction: FEILOLI UART is not OK, MainStatus: NONE_FEILOLI')
             main_while_delay_seconds = 10    
-            dis.draw_text(spleen16,  "%02d" % 99, 3 * 8, 5 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示娃娃機狀態
-            dis.dev.show()
+            LCD_update_flag['Claw_State'] = True
 
         elif (self.state == MainStatus.NONE_FEILOLI or self.state == MainStatus.STANDBY_FEILOLI or self.state == MainStatus.WAITING_FEILOLI) and action == 'MQTT is not OK':
             self.state = MainStatus.NONE_MQTT
             # 以下執行"MQTT失敗後"相應的操作
             print('\n\rAction: MQTT is not OK, MainStatus: NONE_MQTT')
             main_while_delay_seconds = 1
-            dis.draw_text(spleen16, 'error', 5 * 8, 7 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示wifi和MQTT狀態
-            dis.dev.show()
+            LCD_update_flag['WiFi'] = True
 
         else:
             print('\n\rInvalid action:', action, 'for current state:', self.state)
@@ -314,11 +296,18 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
         signal_strength = get_wifi_signal_strength(wifi)
         macid = my_internet_data.mac_address
         mq_topic = macid + '/' + token + '/status'
-        MQTT_claw_data = {
-            "status": "%02d" % (claw_data.Error_Code_of_Machine),
-            "wifirssi": signal_strength,
-            "time":   utime.time()
-        }
+        if now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI :
+            MQTT_claw_data = {
+                "status": "%02d" % (claw_data.Error_Code_of_Machine),
+                "wifirssi": signal_strength,
+                "time":   utime.time()
+            }
+        else :
+            MQTT_claw_data = {
+                "status": "%02d" % 99,
+                "wifirssi": signal_strength,
+                "time":   utime.time()
+            }
     elif MQTT_API_select == 'commandack-pong':
         macid = my_internet_data.mac_address
         mq_topic = macid + '/' + token + '/commandack'
@@ -543,7 +532,7 @@ class ReceivedClawData:
         self.CMD_Backstage_function = 0         # for 五、悠遊卡功能\後台功能
         self.Error_Code_of_IPC_Feedback = 0     # for 五、悠遊卡功能\後台功能
         '''
-        self.Error_Code_of_Machine = 0          # for 六、 機台故障代碼表
+        self.Error_Code_of_Machine = 99          # for 六、 機台故障代碼表
 
 # 发送封包給娃娃機的副程式
 FEILOLI_packet_id = 0
@@ -619,7 +608,8 @@ def uart_FEILOLI_recive_packet_task():
                                 claw_1.Number_of_Coin = uart_recive_packet[8] * 256 + uart_recive_packet[9]                 # 投幣次數
                                 claw_1.Number_of_Award = uart_recive_packet[10] * 256 + uart_recive_packet[11]              # 禮品出獎次數
                                 claw_1.Error_Code_of_Machine = uart_recive_packet[12]                   # 六、 機台故障代碼表
-                                print("Recive 娃娃機 : 三、 帳目查詢\遠端帳目")
+                                print("Recive 娃娃機 : 三、 帳目查詢\遠端帳目")            
+                            LCD_update_flag['Claw_Value'] = True
                             now_main_state.transition('FEILOLI UART is OK')
                             utime.sleep_ms(100)     # 休眠一小段時間，避免過度使用CPU資源
                             continue
@@ -628,7 +618,7 @@ def uart_FEILOLI_recive_packet_task():
 
 server_report_sales_period = 3*60  # 3分鐘 = 3*60 單位秒
 # server_report_sales_period = 10   # For快速測試
-server_report_sales_counter = 0
+server_report_sales_counter = server_report_sales_period - 30 # 開機後第一次送MQTT會縮短到30秒
  
 # 定義server_report計時器回調函式 (每1秒執行1次)
 def server_report_timer_callback(timer):
@@ -656,7 +646,6 @@ def server_report_timer_callback(timer):
 
 # 定義claw_check計時器回調函式
 counter_of_WAITING_FEILOLI = 0
-
 def claw_check_timer_callback(timer):
     global counter_of_WAITING_FEILOLI
     if now_main_state.state == MainStatus.NONE_FEILOLI:
@@ -678,6 +667,64 @@ def claw_check_timer_callback(timer):
                 now_main_state.transition('FEILOLI UART is not OK')
             print("Updating 娃娃機 機台狀態 ...")
             uart_FEILOLI_send_packet(KindFEILOLIcmd.Ask_Machine_status)
+            
+# 定義LCD_update計時器回調函式
+def LCD_update_timer_callback(timer):
+    if LCD_update_flag['Uniform']:
+        LCD_update_flag['Uniform'] = False
+        unique_id_hex = binascii.hexlify(machine.unique_id()).decode().upper()
+        dis.fill(color.BLACK)
+        dis.draw_text(spleen16, 'Happy Collector', 0, 0, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
+        dis.fgcolor = color.RED     # 设置前景颜色为紅色
+        dis.bgcolor = color.WHITE   # 设置背景颜色为黑色
+        dis.draw_text(spleen16, unique_id_hex, 5, 8 * 16 + 5, 1.3, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) 
+        dis.dev.show()
+        dis.fgcolor = color.WHITE   # 设置前景颜色为白色
+        dis.bgcolor = color.BLACK   # 设置背景颜色为黑色
+        dis.draw_text(spleen16, 'IN:--------', 0, 1 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        dis.draw_text(spleen16, 'OUT:--------', 0, 2 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        dis.draw_text(spleen16, 'EP:--------', 0, 3 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        dis.draw_text(spleen16, 'FP:--------', 0, 4 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        dis.draw_text(spleen16, 'ST:--', 0, 5 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        dis.draw_text(spleen16, 'Time:mm/dd hh:mm', 0, 6 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        dis.draw_text(spleen16, 'Wifi:-----', 0, 7 * 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0) 
+        # dis.dev.show()
+    elif LCD_update_flag['WiFi']:
+        LCD_update_flag['WiFi'] = False
+        if now_main_state.state == MainStatus.NONE_WIFI or now_main_state.state == MainStatus.NONE_INTERNET:
+            dis.draw_text(spleen16, 'dis  ', 5 * 8, 7 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示wifi和MQTT狀態
+        elif now_main_state.state == MainStatus.NONE_MQTT:
+            dis.draw_text(spleen16, 'error', 5 * 8, 7 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示wifi和MQTT狀態
+        elif now_main_state.state == MainStatus.NONE_FEILOLI or now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI:
+            dis.draw_text(spleen16, 'ok   ', 5 * 8, 7 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示wifi和MQTT狀態
+        # dis.dev.show()
+    elif LCD_update_flag['Claw_State']:
+        LCD_update_flag['Claw_State'] = False  
+        if now_main_state.state == MainStatus.NONE_FEILOLI :
+            dis.draw_text(spleen16,  "%02d" % 99, 3 * 8, 5 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示娃娃機狀態
+        elif now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI:
+            dis.draw_text(spleen16,  "%02d" % claw_1.Error_Code_of_Machine, 3 * 8, 5 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示娃娃機狀態
+        else:
+            dis.draw_text(spleen16,  "--", 3 * 8, 5 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示娃娃機狀態
+        # dis.dev.show()
+    elif LCD_update_flag['Claw_Value']:
+        LCD_update_flag['Claw_Value'] = False
+        if now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI:
+            dis.draw_text(spleen16,  "%-8d" % claw_1.Number_of_Coin, 3 * 8, 1 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
+            dis.draw_text(spleen16,  "%-8d" % claw_1.Number_of_Award, 4 * 8, 2 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
+            dis.draw_text(spleen16,  "%-8d" % claw_1.Number_of_Original_Payment, 3 * 8, 3 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
+            dis.draw_text(spleen16,  "%-8d" % claw_1.Number_of_Gift_Payment, 3 * 8, 4 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
+        # dis.dev.show()
+    elif (LCD_update_flag['Time']):
+        LCD_update_flag['Time'] = False  
+        # 获取当前时间戳
+        timestamp = utime.time()
+        # 转换为本地时间
+        local_time = utime.localtime(timestamp)
+        # 格式化为 "mm/dd hh:mm" 格式的字符串
+        formatted_time = "{:02d}/{:02d} {:02d}:{:02d}".format(local_time[1], local_time[2], local_time[3], local_time[4])
+        dis.draw_text(spleen16,  formatted_time, 5 * 8, 6 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)    #顯示時間
+    dis.dev.show()
 
 
 ############################################# 初始化 #############################################
@@ -695,13 +742,13 @@ wdt=WDT(timeout=1000*60*10)
 
 print('2開機秒數:', time.ticks_ms() / 1000)
 
+# LCD配置
 try:
-    # LCD配置
     LCD_EN = machine.Pin(27, machine.Pin.OUT)
     LCD_EN.value(1)
     spi = SPI(1, baudrate=20000000, polarity=0, phase=0, sck=Pin(14), mosi=Pin(13))
     gc.collect()
-    sleep(1)
+    utime.sleep(1)
     st7735 = ST7735(spi, 4, 15, None, 128, 160, rotate=0)
     st7735.initb2()
     st7735.setrgb(True)
@@ -713,6 +760,14 @@ try:
 except:
     print('st7735 Error')
     machine.reset()
+
+LCD_update_flag = {
+    'Uniform': True,
+    'WiFi': False,
+    'Time': False,
+    'Claw_State': False,
+    'Claw_Value': False,
+}
 
 print('3開機秒數:', time.ticks_ms() / 1000)
 
@@ -731,6 +786,7 @@ uart_FEILOLI = machine.UART(2, baudrate=19200, tx=17, rx=16)
 # 創建計時器物件
 server_report_timer = machine.Timer(0)
 claw_check_timer = machine.Timer(1)
+LCD_update_timer = machine.Timer(2)
 
 # 建立並執行uart_FEILOLI_recive_packet_task
 _thread.start_new_thread(uart_FEILOLI_recive_packet_task, ())
@@ -740,12 +796,15 @@ TIMER_INTERVAL = 1000  # 設定1秒鐘 = 1000（單位：毫秒）
 server_report_timer.init(period=TIMER_INTERVAL, mode=machine.Timer.PERIODIC, callback=server_report_timer_callback)
 TIMER_INTERVAL = 10 * 1000  # 設定10秒鐘 = 10*1000（單位：毫秒）
 claw_check_timer.init(period=TIMER_INTERVAL, mode=machine.Timer.PERIODIC, callback=claw_check_timer_callback)
+TIMER_INTERVAL = 1000  # 設定1秒鐘 = 10*1000（單位：毫秒）
+LCD_update_timer.init(period=TIMER_INTERVAL, mode=machine.Timer.PERIODIC, callback=LCD_update_timer_callback)
 
 last_time = 0
 main_while_delay_seconds = 1
 while True:
 
-    utime.sleep_ms(100)
+    utime.sleep_ms(500)
+
     current_time = time.ticks_ms()
     if (time.ticks_diff(current_time, last_time) >= main_while_delay_seconds * 1000):
         last_time = time.ticks_ms()
@@ -784,13 +843,6 @@ while True:
             print('\n\rnow_main_state: FEILOLI UART is OK, 開機秒數:', current_time / 1000)
             gc.collect()
             print(gc.mem_free())
-            dis.draw_text(spleen16,  "%-8d" % claw_1.Number_of_Coin, 3 * 8, 1 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
-            dis.draw_text(spleen16,  "%-8d" % claw_1.Number_of_Award, 4 * 8, 2 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
-            dis.draw_text(spleen16,  "%-8d" % claw_1.Number_of_Original_Payment, 3 * 8, 3 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
-            dis.draw_text(spleen16,  "%-8d" % claw_1.Number_of_Gift_Payment, 3 * 8, 4 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)
-            dis.draw_text(spleen16,  "%02d" % claw_1.Error_Code_of_Machine, 3 * 8, 5 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0) #顯示娃娃機狀態
-            dis.dev.show()
-
 
         elif now_main_state.state == MainStatus.WAITING_FEILOLI:
             print('\n\rnow_main_state: FEILOLI UART is witing, 開機秒數:', current_time / 1000)
@@ -801,12 +853,6 @@ while True:
             print('\n\rInvalid action! now_main_state:', now_main_state.state)
             print('開機秒數:', current_time / 1000)
 
-    # 获取当前时间戳
-    timestamp = utime.time()
-    # 转换为本地时间
-    local_time = utime.localtime(timestamp)
-    # 格式化为 "mm/dd hh:mm" 格式的字符串
-    formatted_time = "{:02d}/{:02d} {:02d}:{:02d}".format(local_time[1], local_time[2], local_time[3], local_time[4])
-    dis.draw_text(spleen16,  formatted_time, 5 * 8, 6 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)    #顯示時間
-    dis.dev.show()
+        LCD_update_flag['Time'] = True
+    
 
