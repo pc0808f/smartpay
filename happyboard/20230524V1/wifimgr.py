@@ -10,6 +10,8 @@ unique_id_hex = binascii.hexlify(machine.unique_id()[-3:]).decode().upper()
 ap_ssid = "HappyWifi" + unique_id_hex
 ap_password = "happywifi"
 
+DHCP_NAME = "Happy_" + unique_id_hex
+
 # ap_ssid = "WifiManager"
 # ap_password = "tayfunulu"
 ap_authmode = 3  # WPA2
@@ -107,6 +109,7 @@ def do_connect(ssid, password):
     if wlan_sta.isconnected():
         return None 
     print('Trying to connect to %s...' % ssid)
+    wlan_sta.config(dhcp_hostname=DHCP_NAME)
     wlan_sta.connect(ssid, password)
     for retry in range(200):
         connected = wlan_sta.isconnected()
