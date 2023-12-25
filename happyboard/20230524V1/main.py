@@ -8,7 +8,7 @@ import os
 from dr.st7735.st7735_4bit import ST7735
 from machine import SPI, Pin
 from machine import WDT
-
+import network
 
 import ntptime
 
@@ -59,6 +59,50 @@ dis.dev.show()
 gc.collect()
 print(gc.mem_free())
 
+
+
+def UDP_Load_Wifi():
+    # Connect to Wi-Fi
+    wifi_ssid = "Sam"
+    wifi_password = "0928666624"
+
+    station = network.WLAN(network.STA_IF)
+    station.active(True)
+    station.connect(wifi_ssid, wifi_password)
+
+    while not station.isconnected():
+        pass
+
+    print("Connected to Wi-Fi")
+    print('\nConnected. Network config: ', station.ifconfig())
+    dis.draw_text(spleen16, 'Wi-Fi OK', 0, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.draw_text(spleen16, 'IP:', 0, 16+16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.draw_text(spleen16, station.ifconfig()[0], 3, 16+16+16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.dev.show()
+
+    # Set up UDP socket
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket.bind(("0.0.0.0", 1234))
+
+    print("Listening for UDP messages on port 1234")
+    dis.draw_text(spleen16, "wait UDP...", 0, 16+16+16+16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.dev.show()
+
+    while True:
+        data, addr = udp_socket.recvfrom(1024)
+        print("Received message: {}".format(data.decode('utf-8')))
+        dis.draw_text(spleen16, data.decode('utf-8'), 0, 16+16+16+16+16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        dis.dev.show()
+        with open('wifi.dat', "w") as f:
+            f.write(data.decode('utf-8'))
+        sleep(3)
+        machine.reset()
+
+
+if(readKBData(1,CP,CE,PL,Q7)[0]==0) :
+    print("load wifi")
+    UDP_Load_Wifi()
+
 # if (wifimgr.read_profiles() != {}):
 #     print(wifimgr.read_profiles())
 #     dis.draw_text(spleen16, 'SSID:', 0, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
@@ -68,6 +112,9 @@ print(gc.mem_free())
 #     dis.draw_text(spleen16, 'no ssid', 0, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
 #     dis.draw_text(spleen16, 'need setup wifi..', 0, 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
 # dis.dev.show()
+
+
+
 
 def get_wifi_signal_strength(wlan):
     if wlan.isconnected():

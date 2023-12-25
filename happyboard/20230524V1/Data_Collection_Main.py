@@ -1,4 +1,4 @@
-VERSION = "V1.06a"
+VERSION = "V1.07a"
 
 import machine
 import binascii
@@ -14,12 +14,11 @@ import gc
 from machine import WDT
 import os
 
-#Based on 2023/8/17_V1.05f, Sam
-# 2023/9/26_V1.06a Thomas 
-#  1. 修改LCM顯示機制，統一Timer讀Flag
-#  2. 刪除mpy、otatest
-#  3. 改成開機後 MQTT第一次是 30秒就計數達標
-#  4. 修正MQTT status沒連到娃娃機會送99
+#Based on 2023/9/26_V1.06a, Thomas 
+# 2023/12/25_V1.07a, Sam 
+#  1. wifimgr.py新增DHCP_NAME為"Happy_" + unique_id_hex
+#  2. main.py新增UDP_Load_Wifi，接收UDP文字，直接寫入wifi.dat，然後重開機
+#  3. main.py新增開機時，按著SW4會進去UDP_Load_Wifi
 
 # 定義狀態類型
 class MainStatus:
