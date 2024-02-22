@@ -32,6 +32,7 @@ LCD_EN = machine.Pin(27, machine.Pin.OUT)
 keyMenu = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_UP)
 keyU = machine.Pin(36, machine.Pin.IN, machine.Pin.PULL_UP)
 keyD = machine.Pin(39, machine.Pin.IN, machine.Pin.PULL_UP)
+ESP32_TXD2_FEILOLI = machine.Pin(17, machine.Pin.IN)
 
 gc.collect()
 print(gc.mem_free())
@@ -62,6 +63,8 @@ print(gc.mem_free())
 
 
 def UDP_Load_Wifi():
+    dis.draw_text(spleen16, 'wait UDP Wi-Fi.', 0, 16*1, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.dev.show()
     # Connect to Wi-Fi
     wifi_ssid = "Sam"
     wifi_password = "0928666624"
@@ -75,9 +78,9 @@ def UDP_Load_Wifi():
 
     print("Connected to Wi-Fi")
     print('\nConnected. Network config: ', station.ifconfig())
-    dis.draw_text(spleen16, 'Wi-Fi OK', 0, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
-    dis.draw_text(spleen16, 'IP:', 0, 16+16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
-    dis.draw_text(spleen16, station.ifconfig()[0], 3, 16+16+16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.draw_text(spleen16, 'UDP Wi-Fi OK', 0, 16*2, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.draw_text(spleen16, 'IP:', 0, 16*3, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.draw_text(spleen16, station.ifconfig()[0], 3, 16*4, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
     dis.dev.show()
 
     # Set up UDP socket
@@ -85,13 +88,13 @@ def UDP_Load_Wifi():
     udp_socket.bind(("0.0.0.0", 1234))
 
     print("Listening for UDP messages on port 1234")
-    dis.draw_text(spleen16, "wait UDP...", 0, 16+16+16+16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+    dis.draw_text(spleen16, "wait UDP...", 0, 16*5, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
     dis.dev.show()
 
     while True:
         data, addr = udp_socket.recvfrom(1024)
         print("Received message: {}".format(data.decode('utf-8')))
-        dis.draw_text(spleen16, data.decode('utf-8'), 0, 16+16+16+16+16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
+        dis.draw_text(spleen16, data.decode('utf-8'), 0, 16*6, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
         dis.dev.show()
         with open('wifi.dat', "w") as f:
             f.write(data.decode('utf-8'))
@@ -99,8 +102,11 @@ def UDP_Load_Wifi():
         machine.reset()
 
 
-if(readKBData(1,CP,CE,PL,Q7)[0]==0) :
-    print("load wifi")
+if readKBData(1,CP,CE,PL,Q7)[0] == 0 :
+    print("SW4被按下，進入UDP load wifi")
+    UDP_Load_Wifi()
+elif ESP32_TXD2_FEILOLI.value() == 0 :
+    print("ESP32_TXD2_FEILOLI被拉Low，進入UDP load wifi")
     UDP_Load_Wifi()
 
 # if (wifimgr.read_profiles() != {}):

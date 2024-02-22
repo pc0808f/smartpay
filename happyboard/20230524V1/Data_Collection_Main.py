@@ -1,4 +1,4 @@
-VERSION = "V1.07a"
+VERSION = "V1.07b"
 
 import machine
 import binascii
@@ -14,11 +14,10 @@ import gc
 from machine import WDT
 import os
 
-#Based on 2023/9/26_V1.06a, Thomas 
-# 2023/12/25_V1.07a, Sam 
-#  1. wifimgr.py新增DHCP_NAME為"Happy_" + unique_id_hex
-#  2. main.py新增UDP_Load_Wifi，接收UDP文字，直接寫入wifi.dat，然後重開機
-#  3. main.py新增開機時，按著SW4會進去UDP_Load_Wifi
+#Based on 2023/12/25_V1.07a, Sam 
+# 2024/02/22_V1.07b, Thomas 
+#  1. main.py新增開機時，如果ESP32_TXD2_FEILOLI(IO17)讀到Low，會進去UDP_Load_Wifi
+#  2. 進入UDP_Load_Wifi時，LCD會顯示等待UDP的Wifi，讓操作者知道有進入該Mode
 
 # 定義狀態類型
 class MainStatus:
@@ -735,7 +734,6 @@ print('開機秒數:', time.ticks_ms() / 1000)
 load_token()
 
 print('1開機秒數:', time.ticks_ms() / 1000)
-
 
 wdt=WDT(timeout=1000*60*10)
 
