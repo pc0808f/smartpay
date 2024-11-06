@@ -207,9 +207,9 @@ if filename in file_list:
 
       OTA = senko.Senko(
           user="pc0808f",  # Required
-          repo="happycollector",  # Required
+          repo="smartpay",  # Required
           branch="alpha",  # Optional: Defaults to "master"
-          working_dir="happyboard/20230524V1",  # Optional: Defaults to "app"
+          working_dir="releaseFiles/latestVersion",  # Optional: Defaults to "app"
           files=file_list
       )
 

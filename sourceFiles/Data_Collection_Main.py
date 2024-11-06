@@ -1,4 +1,4 @@
-VERSION = "V1.07b"
+VERSION = "HP_V0.01a"
 
 import machine
 import binascii
@@ -14,10 +14,11 @@ import gc
 from machine import WDT
 import os
 
-#Based on 2023/12/25_V1.07a, Sam 
-# 2024/02/22_V1.07b, Thomas 
-#  1. main.py新增開機時，如果ESP32_TXD2_FEILOLI(IO17)讀到Low，會進去UDP_Load_Wifi
-#  2. 進入UDP_Load_Wifi時，LCD會顯示等待UDP的Wifi，讓操作者知道有進入該Mode
+#Based on happycollector 2024/02/22_V1.07b, Thomas 
+# 2024/11/06_HP_V0.01a, Thomas 
+#  1. 新增GPIO：ACER_CardReader_PAYOUT
+#  2. 若收到GPIO負緣中斷，UART送封包(啟動遊戲一次)
+#  3. 修改OTA的Github專案名稱，並且更新路徑名稱
 
 # 定義狀態類型
 class MainStatus:
@@ -137,8 +138,8 @@ def connect_wifi():
 
     if not wifi.config('essid'):
         print('沒有經過wifimgr.py')
-        wifi_ssid = 'paypc'
-        wifi_password = 'abcd1234'
+        wifi_ssid = 'propsky'
+        wifi_password = '4288178sky'
         wifi.active(True)
         wifi.connect(wifi_ssid, wifi_password)
 
@@ -767,6 +768,18 @@ LCD_update_flag = {
 }
 
 print('3開機秒數:', time.ticks_ms() / 1000)
+
+# 定義GPI中斷處理函式
+def handle_falling_edge(pin):
+    # 要再用if確認是什麼pin觸發
+    print("PAYOUT負緣檢測到，娃娃機啟動遊戲")
+    uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)    
+
+# TV-1QR GPIO配置
+ACER_CardReader_PAYOUT = machine.Pin(18, machine.Pin.IN)
+#ACER_CardReader_CoinEN = machine.Pin(5, machine.Pin.IN)
+# 設定TV-1QR PAYOUT中斷，觸發條件為負緣
+ACER_CardReader_PAYOUT.irq(trigger=machine.Pin.IRQ_FALLING, handler=handle_falling_edge)
 
 # 創建狀態機
 now_main_state = MainStateMachine()
