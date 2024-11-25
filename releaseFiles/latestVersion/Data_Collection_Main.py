@@ -1,4 +1,4 @@
-VERSION = "HP_V0.01a"
+VERSION = "HP_V0.01b"
 
 import machine
 import binascii
@@ -14,11 +14,11 @@ import gc
 from machine import WDT
 import os
 
-#Based on happycollector 2024/02/22_V1.07b, Thomas 
-# 2024/11/06_HP_V0.01a, Thomas 
-#  1. 新增GPIO：ACER_CardReader_PAYOUT
-#  2. 若收到GPIO負緣中斷，UART送封包(啟動遊戲一次)
-#  3. 修改OTA的Github專案名稱，並且更新路徑名稱
+#Based on smartpay 2024/11/06_HP_V0.01a, Thomas 
+# 2024/11/25_HP_V0.01b, Thomas 
+#  1. GPIO改名子：ACER_CardReader_PAYOUT改成GPIO_CardReader_PAYOUT
+#  2. 新增GPO_CardReader_EPAY_EN：main.py時輸出0，Data_Clo..._Main.py時輸出1
+#  3. 修改部分名字和註解
 
 # 定義狀態類型
 class MainStatus:
@@ -772,14 +772,21 @@ print('3開機秒數:', time.ticks_ms() / 1000)
 # 定義GPI中斷處理函式
 def handle_falling_edge(pin):
     # 要再用if確認是什麼pin觸發
-    print("PAYOUT負緣檢測到，娃娃機啟動遊戲")
+    print("檢測到PAYOUT負緣，傳封包讓娃娃機啟動遊戲")
     uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)    
 
-# TV-1QR GPIO配置
-ACER_CardReader_PAYOUT = machine.Pin(18, machine.Pin.IN)
-#ACER_CardReader_CoinEN = machine.Pin(5, machine.Pin.IN)
+# GPIO配置
+# 卡機端的TV-1QR、觸控按鈕配置
+GPIO_CardReader_PAYOUT = machine.Pin(18, machine.Pin.IN)
+GPO_CardReader_EPAY_EN = machine.Pin(2, machine.Pin.OUT)
+GPO_CardReader_EPAY_EN.value(1)
+
+# 娃娃機端的投幣器、電眼配置
+#GPO_Claw_Coin_EN = machine.Pin(5, machine.Pin.OUT)
+
+# GPIO 中斷配置
 # 設定TV-1QR PAYOUT中斷，觸發條件為負緣
-ACER_CardReader_PAYOUT.irq(trigger=machine.Pin.IRQ_FALLING, handler=handle_falling_edge)
+GPIO_CardReader_PAYOUT.irq(trigger=machine.Pin.IRQ_FALLING, handler=handle_falling_edge)
 
 # 創建狀態機
 now_main_state = MainStateMachine()

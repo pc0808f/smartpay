@@ -27,7 +27,8 @@ try:
 except:
     import socket
 
-led = machine.Pin(2, machine.Pin.OUT)
+GPO_CardReader_EPAY_EN = machine.Pin(2, machine.Pin.OUT)
+GPO_CardReader_EPAY_EN.value(0)
 LCD_EN = machine.Pin(27, machine.Pin.OUT)
 keyMenu = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_UP)
 keyU = machine.Pin(36, machine.Pin.IN, machine.Pin.PULL_UP)
