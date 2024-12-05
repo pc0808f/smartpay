@@ -1,4 +1,4 @@
-VERSION = "HP_V0.01b"
+VERSION = "HP_V0.02"
 
 import machine
 import binascii
@@ -14,11 +14,11 @@ import gc
 from machine import WDT
 import os
 
-#Based on smartpay 2024/11/06_HP_V0.01a, Thomas 
-# 2024/11/25_HP_V0.01b, Thomas 
-#  1. GPIO改名子：ACER_CardReader_PAYOUT改成GPIO_CardReader_PAYOUT
-#  2. 新增GPO_CardReader_EPAY_EN：main.py時輸出0，Data_Clo..._Main.py時輸出1
-#  3. 修改部分名字和註解
+# 2024/12/5_HP_V0.02, Thomas 
+#  1. 修改GPO_CardReader_EPAY_EN：狀態機切換到STANDBY_FEILOLI和WAITING_FEILOLI以外的狀態時，輸出0暫停刷卡
+#  2. 修改GPO_CardReader_EPAY_EN：claw_1.Error_Code_of_Machine沒故障碼時輸出1，反之故障時輸出0暫停刷卡
+#  3. 修改if和while的:排版空格
+# Based on smartpay 2024/11/25_HP_V0.01b, Thomas 
 
 # 定義狀態類型
 class MainStatus:
@@ -39,6 +39,7 @@ class MainStateMachine:
         self.state = MainStatus.NONE_WIFI
         # 以下執行"狀態機初始化"相應的操作
         print('\n\rInit, MainStatus: NONE_WIFI')
+        GPO_CardReader_EPAY_EN.value(0)   # Wi-Fi未連線、而且娃娃機連線未確定，暫停卡機支付功能
         global main_while_delay_seconds, LCD_update_flag
         main_while_delay_seconds = 1
         LCD_update_flag['Uniform'] = True
@@ -49,6 +50,7 @@ class MainStateMachine:
             self.state = MainStatus.NONE_WIFI
             # 以下執行"未連上WiFi後"相應的操作
             print('\n\rAction: WiFi is disconnect, MainStatus: NONE_WIFI')
+            GPO_CardReader_EPAY_EN.value(0)   # Wi-Fi未連線、而且娃娃機連線未確定，暫停卡機支付功能
             main_while_delay_seconds = 1
             LCD_update_flag['WiFi'] = True
 
@@ -56,6 +58,7 @@ class MainStateMachine:
             self.state = MainStatus.NONE_INTERNET
             # 以下執行"連上WiFi後"相應的操作
             print('\n\rAction: WiFi is OK, MainStatus: NONE_INTERNET')
+            GPO_CardReader_EPAY_EN.value(0)   # Wi-Fi已連線、但娃娃機連線未確定，暫停卡機支付功能
             main_while_delay_seconds = 1
             LCD_update_flag['WiFi'] = True
 
@@ -63,6 +66,7 @@ class MainStateMachine:
             self.state = MainStatus.NONE_MQTT
             # 以下執行"連上Internet後"相應的操作
             print('\n\rAction: Internet is OK, MainStatus: NONE_MQTT')
+            GPO_CardReader_EPAY_EN.value(0)   # 外網已連線、但娃娃機連線未確定，暫停卡機支付功能
             main_while_delay_seconds = 1
             LCD_update_flag['WiFi'] = True
 
@@ -70,6 +74,7 @@ class MainStateMachine:
             self.state = MainStatus.NONE_FEILOLI
             # 以下執行"連上MQTT後"相應的操作
             print('\n\rAction: MQTT is OK, MainStatus: NONE_FEILOLI')
+            GPO_CardReader_EPAY_EN.value(0)   # MQTT已連線、但娃娃機連線未確定，暫停卡機支付功能
             main_while_delay_seconds = 10
             LCD_update_flag['WiFi'] = True
             LCD_update_flag['Claw_State'] = True
@@ -91,6 +96,7 @@ class MainStateMachine:
             self.state = MainStatus.NONE_FEILOLI
             # 以下執行"等待失敗後"相應的操作
             print('\n\rAction: FEILOLI UART is not OK, MainStatus: NONE_FEILOLI')
+            GPO_CardReader_EPAY_EN.value(0)   # 娃娃機無法連線，暫停卡機支付功能
             main_while_delay_seconds = 10    
             LCD_update_flag['Claw_State'] = True
 
@@ -98,6 +104,7 @@ class MainStateMachine:
             self.state = MainStatus.NONE_MQTT
             # 以下執行"MQTT失敗後"相應的操作
             print('\n\rAction: MQTT is not OK, MainStatus: NONE_MQTT')
+            GPO_CardReader_EPAY_EN.value(0)   # MQTT無法連線，暫停卡機支付功能
             main_while_delay_seconds = 1
             LCD_update_flag['WiFi'] = True
 
@@ -574,24 +581,24 @@ uart_FEILOLI_rx_queue = []
 def uart_FEILOLI_recive_packet_task():
     global claw_1, uart_FEILOLI
     while True:
-        if uart_FEILOLI.any():
+        if uart_FEILOLI.any() :
             receive_data = uart_FEILOLI.readline()
             uart_FEILOLI_rx_queue.extend(receive_data)
-            while len(uart_FEILOLI_rx_queue) >= 16:
+            while len(uart_FEILOLI_rx_queue) >= 16 :
                 #                 print("uart_FEILOLI_rx_queue:", bytearray(uart_FEILOLI_rx_queue))
                 uart_recive_packet = bytearray(16)
                 uart_recive_packet[0] = uart_FEILOLI_rx_queue.pop(0)  # 從佇列中取出第一個字元
-                if uart_recive_packet[0] == 0x2D:
+                if uart_recive_packet[0] == 0x2D :
                     uart_recive_packet[1] = uart_FEILOLI_rx_queue.pop(0)  # 從佇列中取出下一個字元
-                    if uart_recive_packet[1] == 0x8A:
+                    if uart_recive_packet[1] == 0x8A :
                         uart_recive_check_sum = 0xAA
-                        for i in range(2, 16):
+                        for i in range(2, 16) :
                             uart_recive_packet[i] = uart_FEILOLI_rx_queue.pop(0)
                             uart_recive_check_sum ^= uart_recive_packet[i]
-                        if uart_recive_check_sum == 0x00:  # check sum算完正確，得到正確16Byte
+                        if uart_recive_check_sum == 0x00 :  # check sum算完正確，得到正確16Byte
                             print("Recive packet from 娃娃機:", uart_recive_packet)
                             ######################  在這裡進行packet的處理  ############################################
-                            if uart_recive_packet[2] == 0x81 and uart_recive_packet[3] == 0x01:                 # CMD => 二、主控制\機台狀態
+                            if uart_recive_packet[2] == 0x81 and uart_recive_packet[3] == 0x01 :                 # CMD => 二、主控制\機台狀態
                                 claw_1.CMD_Control_Machine = uart_recive_packet[4]                                  # 回覆控制指令 (機台回覆控制代碼)
                                 claw_1.Status_of_Current_machine[0] = uart_recive_packet[5]                         # 機台目前狀況
                                 claw_1.Status_of_Current_machine[1] = uart_recive_packet[6]                         # 機台目前狀況
@@ -601,13 +608,17 @@ def uart_FEILOLI_recive_packet_task():
                                 claw_1.Cumulation_amount_of_Sale_card = uart_recive_packet[11] * 256 + uart_recive_packet[14]  # 售價小卡顯示用累加金額
                                 claw_1.Error_Code_of_Machine = uart_recive_packet[12]                   # 六、 機台故障代碼表
                                 print("Recive 娃娃機 : 二、主控制\機台狀態")
-                            elif uart_recive_packet[2] == 0x82 and uart_recive_packet[3] == 0x01:               # CMD => 三、 帳目查詢\遠端帳目
+                            elif uart_recive_packet[2] == 0x82 and uart_recive_packet[3] == 0x01 :               # CMD => 三、 帳目查詢\遠端帳目
                                 claw_1.Number_of_Original_Payment = uart_recive_packet[4] * 256 + uart_recive_packet[5]     # 悠遊卡支付次數
                                 claw_1.Number_of_Gift_Payment = uart_recive_packet[6] * 256 + uart_recive_packet[7]         # 悠遊卡贈送次數
                                 claw_1.Number_of_Coin = uart_recive_packet[8] * 256 + uart_recive_packet[9]                 # 投幣次數
                                 claw_1.Number_of_Award = uart_recive_packet[10] * 256 + uart_recive_packet[11]              # 禮品出獎次數
                                 claw_1.Error_Code_of_Machine = uart_recive_packet[12]                   # 六、 機台故障代碼表
-                                print("Recive 娃娃機 : 三、 帳目查詢\遠端帳目")            
+                                print("Recive 娃娃機 : 三、 帳目查詢\遠端帳目")  
+                            if claw_1.Error_Code_of_Machine != 0x00 :
+                                GPO_CardReader_EPAY_EN.value(0)   # 娃娃機有故障碼，暫停卡機支付功能
+                            else :
+                                GPO_CardReader_EPAY_EN.value(1)   # 娃娃機沒有故障碼，啟動卡機支付功能
                             LCD_update_flag['Claw_Value'] = True
                             now_main_state.transition('FEILOLI UART is OK')
                             utime.sleep_ms(100)     # 休眠一小段時間，避免過度使用CPU資源
@@ -779,7 +790,7 @@ def handle_falling_edge(pin):
 # 卡機端的TV-1QR、觸控按鈕配置
 GPIO_CardReader_PAYOUT = machine.Pin(18, machine.Pin.IN)
 GPO_CardReader_EPAY_EN = machine.Pin(2, machine.Pin.OUT)
-GPO_CardReader_EPAY_EN.value(1)
+GPO_CardReader_EPAY_EN.value(0)
 
 # 娃娃機端的投幣器、電眼配置
 #GPO_Claw_Coin_EN = machine.Pin(5, machine.Pin.OUT)
