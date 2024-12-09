@@ -1,4 +1,4 @@
-VERSION = "HP_V0.02"
+VERSION = "HP_V0.03"
 
 import machine
 import binascii
@@ -14,11 +14,12 @@ import gc
 from machine import WDT
 import os
 
-# 2024/12/5_HP_V0.02, Thomas 
-#  1. 修改GPO_CardReader_EPAY_EN：狀態機切換到STANDBY_FEILOLI和WAITING_FEILOLI以外的狀態時，輸出0暫停刷卡
-#  2. 修改GPO_CardReader_EPAY_EN：claw_1.Error_Code_of_Machine沒故障碼時輸出1，反之故障時輸出0暫停刷卡
-#  3. 修改if和while的:排版空格
-# Based on smartpay 2024/11/25_HP_V0.01b, Thomas 
+# 2024/12/9_HP_V0.03, Thomas 
+#  1. 修改GPIO_CardReader_PAYOUT的中斷副程式名稱
+#  2. 修改GPIO_CardReader_PAYOUT的中斷副程式，Hi pules時間寬度要夠大，Lo pulse要在50~200ms 以內才會啟動遊戲
+#  3. 多一行測試用程式碼：不管娃娃機是否故障，都會開啟刷卡功能，但release時要記得關掉
+#  4. 以為空間不夠，刪掉py檔一些用不到的註解程式碼
+# Based on smartpay 2024/12/5_HP_V0.02, Thomas 
 
 # 定義狀態類型
 class MainStatus:
@@ -229,9 +230,6 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
                 if 'state' in data:
                     publish_MQTT_claw_data(claw_1, 'commandack-clawreboot',data['state'])
                     uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Machine_reboot)
-                # else:
-                #     publish_MQTT_claw_data(claw_1, 'commandack-clawreboot')
-                #     uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Machine_reboot)
             elif data['commands'] == 'clawstartgame':
                 if 'state' in data:
                     publish_MQTT_claw_data(claw_1, 'commandack-clawstartgame',data['state'])
@@ -617,6 +615,7 @@ def uart_FEILOLI_recive_packet_task():
                                 print("Recive 娃娃機 : 三、 帳目查詢\遠端帳目")  
                             if claw_1.Error_Code_of_Machine != 0x00 :
                                 GPO_CardReader_EPAY_EN.value(0)   # 娃娃機有故障碼，暫停卡機支付功能
+                                # GPO_CardReader_EPAY_EN.value(1)   # For 測試，不管是否故障，都啟動卡機支付功能
                             else :
                                 GPO_CardReader_EPAY_EN.value(1)   # 娃娃機沒有故障碼，啟動卡機支付功能
                             LCD_update_flag['Claw_Value'] = True
@@ -737,6 +736,27 @@ def LCD_update_timer_callback(timer):
     dis.dev.show()
 
 
+# 定義GPI中斷處理函式
+PAYOUT_falling_time = time.ticks_ms()
+PAYOUT_last_rising_time = time.ticks_ms()
+def GPI_interrupt_handler(pin):
+    global PAYOUT_falling_time, PAYOUT_last_rising_time
+    print("GPI中斷處理函式 收到中斷:", pin)
+    if pin == GPIO_CardReader_PAYOUT :
+        if GPIO_CardReader_PAYOUT.value() == 0 :
+            PAYOUT_falling_time = time.ticks_ms()
+        elif GPIO_CardReader_PAYOUT.value() == 1 :
+            PAYOUT_rising_time = time.ticks_ms()
+            PAYOUT_hipulse_time = PAYOUT_falling_time - PAYOUT_last_rising_time
+            PAYOUT_lowpulse_time = PAYOUT_rising_time - PAYOUT_falling_time
+            print("中斷PAYOUT收到Hi Pulse，寬度(ms):", PAYOUT_hipulse_time, ",和Low Pulse，寬度(ms):", PAYOUT_lowpulse_time)
+            if PAYOUT_hipulse_time >= 100 and (50 <= PAYOUT_lowpulse_time and PAYOUT_lowpulse_time <=200) :
+                print("Pulse的Hi和Lo寬度都正確，啟動娃娃機遊戲")
+                uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)   
+            else :
+                print("Pulse的Hi或Lo寬度不正確，不進行任何動作")
+            PAYOUT_last_rising_time = PAYOUT_rising_time
+
 ############################################# 初始化 #############################################
 
 print('\n\r開始執行Data_Collection_Main初始化，版本為:', VERSION)
@@ -780,15 +800,10 @@ LCD_update_flag = {
 
 print('3開機秒數:', time.ticks_ms() / 1000)
 
-# 定義GPI中斷處理函式
-def handle_falling_edge(pin):
-    # 要再用if確認是什麼pin觸發
-    print("檢測到PAYOUT負緣，傳封包讓娃娃機啟動遊戲")
-    uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)    
 
 # GPIO配置
 # 卡機端的TV-1QR、觸控按鈕配置
-GPIO_CardReader_PAYOUT = machine.Pin(18, machine.Pin.IN)
+GPIO_CardReader_PAYOUT = machine.Pin(18, machine.Pin.IN, machine.Pin.PULL_UP)
 GPO_CardReader_EPAY_EN = machine.Pin(2, machine.Pin.OUT)
 GPO_CardReader_EPAY_EN.value(0)
 
@@ -797,7 +812,7 @@ GPO_CardReader_EPAY_EN.value(0)
 
 # GPIO 中斷配置
 # 設定TV-1QR PAYOUT中斷，觸發條件為負緣
-GPIO_CardReader_PAYOUT.irq(trigger=machine.Pin.IRQ_FALLING, handler=handle_falling_edge)
+GPIO_CardReader_PAYOUT.irq(trigger = ( machine.Pin.IRQ_FALLING | machine.Pin.IRQ_RISING ), handler = GPI_interrupt_handler)
 
 # 創建狀態機
 now_main_state = MainStateMachine()
@@ -883,4 +898,3 @@ while True:
 
         LCD_update_flag['Time'] = True
     
-
