@@ -9,7 +9,6 @@ class Senko:
 
     def __init__(self, user, repo, url=None, branch="master", working_dir="app", files=["boot.py", "main.py"], headers={}):
         """Senko OTA agent class.
-
         Args:
             user (str): GitHub user.
             repo (str): GitHub repo to fetch.
@@ -27,24 +26,18 @@ class Senko:
     def _check_hash(self, x, y):
         x_hash = uhashlib.sha1(x.encode())
         y_hash = uhashlib.sha1(y.encode())
-
         x = x_hash.digest()
         y = y_hash.digest()
-
         if str(x) == str(y):
             return True
         else:
             return False
 
     def _get_file(self, url):
-        #print(url)
         gc.collect()
-        #print(gc.mem_free())
         payload = urequests.get(url, headers=self.headers)
         code = payload.status_code
-        #print("read ok  "+url)
         gc.collect()
-        #print(gc.mem_free())
         if code == 200:
             return payload.text
         else:
@@ -52,16 +45,21 @@ class Senko:
 
     def _check_all(self):
         changes = []
-
         for file in self.files:
+            print('Checking file hash:', file)
+            sleep(2)
+            # Getting latest_file_version
             while(gc.mem_free()<60000):
                 gc.collect()
                 print(gc.mem_free())
                 sleep(1)
-            latest_version = self._get_file(self.url + "/" + file)            
+            latest_version = self._get_file(self.url + "/" + file)
             if latest_version is None:
                 continue
-
+            
+            # Getting local_file_version
+            gc.collect()
+            print(gc.mem_free())
             try:
                 with open(file, "r") as local_file:
                     local_version = local_file.read()
@@ -70,37 +68,24 @@ class Senko:
 
             if not self._check_hash(latest_version, local_version):
                 changes.append(file)
-            latest_version=""
+            latest_version = ""
             local_version = ""
 
         return changes
 
-    def fetch(self):
-        """Check if newer version is available.
-
-        Returns:
-            True - if is, False - if not.
-        """
-        if not self._check_all():
-            return False
-        else:
-            return True
-
     def update(self):
-        """Replace all changed files with newer one.
-
-        Returns:
-            True - if changes were made, False - if not.
+        """ Replace all changed files with newer one.
+            Returns: True - if changes were made, False - if not.
         """
         changes = self._check_all()
-        #print(changes)
+        print("OTAing changed-file:", changes)
         gc.collect()
-        #print(gc.mem_free())
         for file in changes:
+            sleep(2)
             with open(file, "w") as local_file:
+                print('Writing file:', file)
                 local_file.write(self._get_file(self.url + "/" + file))
             
-
         if changes:
             return True
         else:

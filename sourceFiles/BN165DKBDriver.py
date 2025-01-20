@@ -8,7 +8,7 @@ def readKBData(
     CE,          #时钟使能管脚
     PL,          #并行输入/锁定数据管脚
     Q7           #顶级串行输出管脚
-):  
+): 
     #串行数据列表
     data=[]
     #每次读取前
@@ -19,7 +19,7 @@ def readKBData(
     #PL低电平以并行输入
     PL.value(0)
     #休眠1ms给数据输入时间
-    utime.sleep(0.001)
+    utime.sleep_ms(1)
     #然后PL高电平锁定并行数据
     PL.value(1)
     #CE低电平时钟启用
@@ -33,7 +33,7 @@ def readKBData(
         CP.value(1)
         data.append(Q7.value());
         CP.value(0)
-        utime.sleep(0.001)
+        utime.sleep_ms(1)
     return data
 #=========================================
 
@@ -50,4 +50,3 @@ def parseKeyData(keyData,meaningStrList):
             result.append(meaningStrList[i])
     return result
     
-

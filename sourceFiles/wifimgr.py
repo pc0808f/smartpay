@@ -9,20 +9,14 @@ import random
 unique_id_hex = binascii.hexlify(machine.unique_id()[-3:]).decode().upper()
 ap_ssid = "HappyWifi" + unique_id_hex
 ap_password = "happywifi"
-
 DHCP_NAME = "Happy_" + unique_id_hex
-
-# ap_ssid = "WifiManager"
-# ap_password = "tayfunulu"
 ap_authmode = 3  # WPA2
-
 NETWORK_PROFILES = 'wifi.dat'
 
 wlan_ap = network.WLAN(network.AP_IF)
 wlan_sta = network.WLAN(network.STA_IF)
 
 server_socket = None
-
 
 def get_connection():
     """return a working WLAN(STA_IF) instance or None"""
@@ -47,28 +41,12 @@ def get_connection():
             
             # Read known network profiles from file
             profiles = read_profiles()
-            
             # print(profiles)
 
             # Search WiFis in range
             wlan_sta.active(True)
             networks = wlan_sta.scan()
 
-#             AUTHMODE = {0: "open", 1: "WEP", 2: "WPA-PSK", 3: "WPA2-PSK", 4: "WPA/WPA2-PSK"}
-#             for ssid, bssid, channel, rssi, authmode, hidden in sorted(networks, key=lambda x: x[3], reverse=True):
-#                 ssid = ssid.decode('utf-8')
-#                 encrypted = authmode > 0
-#                 # print("ssid: %s chan: %d rssi: %d authmode: %s" % (ssid, channel, rssi, AUTHMODE.get(authmode, '?')))
-#                 if encrypted:
-#                     if ssid in profiles:
-#                         password = profiles[ssid]
-#                         connected = do_connect(ssid, password)
-#                     else:
-#                         print("skipping unknown encrypted network")
-#                 else:  # open
-#                     connected = do_connect(ssid, None)
-#                 if connected:
-#                     break
             connected = do_connect(profiles["name"], profiles[profiles["name"]])
 
         except OSError as e:
@@ -131,14 +109,12 @@ def send_header(client, status_code=200, content_length=None ):
       client.sendall("Content-Length: {}\r\n".format(content_length))
     client.sendall("\r\n")
 
-
 def send_response(client, payload, status_code=200):
     content_length = len(payload)
     send_header(client, status_code, content_length)
     if content_length > 0:
         client.sendall(payload)
     client.close()
-
 
 def handle_root(client):
     wlan_sta.active(True)
@@ -248,7 +224,6 @@ def handle_configure(client, request):
 
 def handle_not_found(client, url):
     send_response(client, "Path not found: {}".format(url), status_code=404)
-
 
 def stop():
     global server_socket
