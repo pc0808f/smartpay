@@ -182,14 +182,15 @@ if filename in file_list:
         )
 
         if OTA.update():
-            print("Updated to the latest version! Rebooting...")
-            os.remove(filename)
-            machine.reset()
+            print("Updated to the latest version!")
+        else:
+            print("No changed-file for OTA!")
     except:
-        print("Updated error! Rebooting...")
-        os.remove(filename)
-        machine.reset()
+        print("Updated error!")
+    
+    print("刪除OTA檔案, rebooting...")
     os.remove(filename)
+    machine.reset()
 else:
     dis.draw_text(spleen16, "No OTA", 0, 16 + 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
     dis.dev.show()

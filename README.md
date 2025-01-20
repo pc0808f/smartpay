@@ -1,5 +1,9 @@
 # code-change list
 
+**2025/1/20_HP_V1.00c, Thomas**
+1. 優化OTA流程：只要有OTA檔案，不管更新成功、更新失敗、沒有檔案異動可以更新，做完都會刪除OTA檔案然後重開機
+* Based on smartpay 2025/1/20_HP_V1.00b, Thomas
+---
 **2025/1/20_HP_V1.00b, Thomas**
 1. 為了順利OTA，刪減註解，另外使用README.md當作code-change list
 * Based on smartpay 2025/1/20_HP_V1.00a, Thomas

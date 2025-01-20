@@ -1,4 +1,4 @@
-VERSION = "HP_V1.00b"
+VERSION = "HP_V1.00c"
 
 import machine
 import binascii
