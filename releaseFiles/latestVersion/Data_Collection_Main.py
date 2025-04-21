@@ -1,4 +1,4 @@
-VERSION = "HP_V1.00c"
+VERSION = "SPHP1_V1.00c"
 
 import machine
 import binascii
@@ -824,7 +824,7 @@ print('2開機秒數:', utime.ticks_ms() / 1000)
 # GPIO配置
 # 卡機端的TV-1QR、觸控按鈕配置
 GPIO_CardReader_PAYOUT = machine.Pin(18, machine.Pin.IN, machine.Pin.PULL_UP)
-GPO_CardReader_EPAY_EN = machine.Pin(2, machine.Pin.OUT)
+GPO_CardReader_EPAY_EN = machine.Pin(19, machine.Pin.OUT)
 GPO_CardReader_EPAY_EN.value(0)
 
 # 娃娃機端的投幣器、電眼配置

@@ -15,7 +15,7 @@ print('開機秒數:', utime.ticks_ms() / 1000)
 gc.collect()
 print(gc.mem_free())
 
-GPO_CardReader_EPAY_EN = machine.Pin(2, machine.Pin.OUT)
+GPO_CardReader_EPAY_EN = machine.Pin(19, machine.Pin.OUT)
 GPO_CardReader_EPAY_EN.value(0)
 
 LCD_EN = machine.Pin(27, machine.Pin.OUT)
@@ -176,7 +176,7 @@ if filename in file_list:
         OTA = senko.Senko(
             user="pc0808f",  # Required
             repo="smartpay",  # Required
-            branch="alpha",  # Optional: Defaults to "master"
+            branch="SPHP_HWv1",  # Optional: Defaults to "master"
             working_dir="releaseFiles/latestVersion",  # Optional: Defaults to "app"
             files=file_list
         )
