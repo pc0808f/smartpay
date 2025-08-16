@@ -1,4 +1,4 @@
-VERSION = "SPHP1_V1.00c"
+VERSION = "SPHP1_V1.00d"
 
 import machine
 import binascii
