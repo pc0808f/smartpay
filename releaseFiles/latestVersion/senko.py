@@ -3,7 +3,7 @@ import urequests
 import uhashlib
 import utime
 import gc
-import os # <--- 新增導入 os 模組
+import uos # <--- 使用 uos 模組
 
 class Senko:
     raw = "https://raw.githubusercontent.com"
@@ -38,8 +38,8 @@ class Senko:
         
         try:
             # 確保舊的暫存檔被刪除
-            if "senko.tmp" in os.listdir():
-                os.remove(temp_file)
+            if "senko.tmp" in uos.listdir():
+                uos.remove(temp_file)
 
             resp = urequests.get(url, headers=self.headers)
             if resp.status_code != 200:
@@ -61,8 +61,8 @@ class Senko:
         except Exception as e:
             print("Failed to stream download {}: {}".format(url, e))
             # 清理可能不完整的暫存檔
-            if "senko.tmp" in os.listdir():
-                os.remove(temp_file)
+            if "senko.tmp" in uos.listdir():
+                uos.remove(temp_file)
             return None, None
 
     def _check_all(self):
@@ -75,7 +75,7 @@ class Senko:
             for attempt in range(3):
                 temp_file, r_hash = self._stream_to_temp_and_hash(self.url + "/" + file)
                 if temp_file:
-                    os.remove(temp_file) # 檢查完畢，刪除暫存檔
+                    uos.remove(temp_file) # 檢查完畢，刪除暫存檔
                     remote_hash = r_hash
                     break
                 else:
@@ -114,11 +114,11 @@ class Senko:
                     # 再次驗證本地雜湊值，以防萬一
                     local_hash = self._get_local_hash(file)
                     if remote_hash != local_hash:
-                        os.rename(temp_file, file) # 原子性操作，安全地取代舊檔案
+                        uos.rename(temp_file, file) # 原子性操作，安全地取代舊檔案
                         print("Successfully updated {}.".format(file))
                     else:
                         # 在下載過程中，本地檔案可能已被其他方式更新
-                        os.remove(temp_file)
+                        uos.remove(temp_file)
                         print("File '{}' already up to date.".format(file))
                     updated = True
                     break # 成功，跳出重試

@@ -1,4 +1,4 @@
-VERSION = "SPHP1_V1.00d"
+VERSION = "SPHP1_V1.00e"
 
 import machine
 import binascii
@@ -10,7 +10,7 @@ import network
 import ujson
 import gc
 from machine import WDT
-import os
+import uos
 
 # 定義狀態類型
 class MainStatus:
@@ -244,7 +244,7 @@ def publish_data(mq_client, topic, data):
 
 def get_file_info(filename):
     try:
-        file_stat = os.stat(filename)
+        file_stat = uos.stat(filename)
         file_size = file_stat[6]  # Index 6 is the file size
         file_mtime = file_stat[8]  # Index 8 is the modification time
         return file_size, file_mtime
@@ -341,7 +341,7 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
         file_date = ""
         file_size = 0
         try:
-            file_stat = os.stat(file_name)
+            file_stat = uos.stat(file_name)
             file_size, file_mtime = get_file_info(file_name)
             if file_size is not None:
                 #print("File Size:", file_size, "bytes")
@@ -393,9 +393,9 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
         file_name = para1
         result=""
         try:
-            file_stat = os.stat(file_name)
+            file_stat = uos.stat(file_name)
             if file_name != "main.py":
-                os.remove(para1)
+                uos.remove(para1)
                 result="remove ok"
             else:
                 result="CAN NOT REMOVE main.py"

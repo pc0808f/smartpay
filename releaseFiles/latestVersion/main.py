@@ -1,7 +1,7 @@
 import wifimgr
 import utime
 import machine
-import os
+import uos
 from dr.st7735.st7735_4bit import ST7735
 from machine import SPI, Pin
 from machine import WDT
@@ -156,7 +156,7 @@ tw_ntp(must=True)
 # 檔案名稱
 filename = 'otalist.dat'
 # 取得目錄下的所有檔案和資料夾
-file_list = os.listdir()
+file_list = uos.listdir()
 print(file_list)
 # 檢查OTA檔案是否存在
 if filename in file_list:
@@ -189,7 +189,7 @@ if filename in file_list:
         print("Updated error!")
     
     print("刪除OTA檔案, rebooting...")
-    os.remove(filename)
+    uos.remove(filename)
     machine.reset()
 else:
     dis.draw_text(spleen16, "No OTA", 0, 16 + 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)

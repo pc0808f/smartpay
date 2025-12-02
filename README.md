@@ -1,5 +1,13 @@
 # code-change list
 
+**2025/12/2_SPHP1_V1.00e, Thomas**
+1. 統一所有 .py 檔案的行尾字元格式：CRLF → LF
+2. 更新模組引用：os → uos (符合 MicroPython 標準)
+    - 修改檔案：Data_Collection_Main.py, main.py, senko.py  
+3. 此版本暫不發布 OTA 更新，將於下一版本一併測試新版 senko OTA 功能，不會再發生記憶體爆掉
+4. 新增 Claude Code 的 CLAUDE.md 專案說明文件
+* Based on smartpay 2025/7/29_SPHP_V1.00d, Thomas
+---
 **2025/7/29_SPHP1_V1.00d, Thomas**
 1. 新增Sam寫的ntptime.py
 2. 更新Sam寫的senko.py
