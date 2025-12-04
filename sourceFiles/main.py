@@ -1,25 +1,33 @@
-import wifimgr
 import utime
-import machine
 import uos
-from dr.st7735.st7735_4bit import ST7735
-from machine import SPI, Pin
-from machine import WDT
+from machine import SPI, Pin, WDT
 import network
 import ntptime
-from machine import Pin
 from BN165DKBDriver import readKBData
+import machine
+from dr.st7735.st7735_4bit import ST7735
+import wifimgr
 
 print('\n\r開始執行main.py初始化')
 print('開機秒數:', utime.ticks_ms() / 1000)
 gc.collect()
 print(gc.mem_free())
 
+# GPIO配置:卡機端的TV-1配置，關掉刷卡功能
 GPO_CardReader_EPAY_EN = machine.Pin(19, machine.Pin.OUT)
 GPO_CardReader_EPAY_EN.value(0)
 
+# GPIO配置:74HC165的四個IO線配置和UDP-WiFi設定板的一個IO配置
+CP = Pin(0, Pin.OUT)
+CE = Pin(0, Pin.OUT)
+PL = Pin(32, Pin.OUT)
+Q7 = Pin(33, Pin.IN)
+ESP32_TXD2_FEILOLI = machine.Pin(17, machine.Pin.IN)
+
+# GPIO配置:LCD的背光配置和啟動背光
 LCD_EN = machine.Pin(27, machine.Pin.OUT)
 LCD_EN.value(1)
+
 spi = SPI(1, baudrate=20000000, polarity=0, phase=0, sck=Pin(14), mosi=Pin(13))
 st7735 = ST7735(spi, 4, 15, None, 128, 160, rotate=0)
 st7735.initb2()
@@ -51,8 +59,10 @@ def UDP_Load_Wifi():
     station = network.WLAN(network.STA_IF)
     station.active(True)
     station.connect(wifi_ssid, wifi_password)
+
     while not station.isconnected():
-        utime.sleep_ms(500)
+        utime.sleep_ms(200)
+
     print("Connected to Wi-Fi")
     print('Network config: ', station.ifconfig())
     dis.draw_text(spleen16, 'UDP Wi-Fi OK', 0, 16*2, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
@@ -78,12 +88,6 @@ def UDP_Load_Wifi():
         utime.sleep(3)
         machine.reset()
 
-ESP32_TXD2_FEILOLI = machine.Pin(17, machine.Pin.IN)
-# 165D键盘的四根数据线对应的GPIO
-CP = Pin(0, Pin.OUT)
-CE = Pin(0, Pin.OUT)
-PL = Pin(32, Pin.OUT)
-Q7 = Pin(33, Pin.IN)
 Data_74HC165 = readKBData(1, CP, CE, PL, Q7)
 print("74HC165:", Data_74HC165)
 if Data_74HC165[3] == 0 :
@@ -97,14 +101,14 @@ elif ESP32_TXD2_FEILOLI.value() == 0 :
     print("ESP32_TXD2_FEILOLI被拉Low，進入UDP load wifi")
     UDP_Load_Wifi()
 
-utime.sleep(1)
 wdt=WDT(timeout=1000*60*5) 
+utime.sleep(1)
 
 wlan = wifimgr.get_connection()
 if wlan is None:
     print("Could not initialize the network connection.")
     while True:
-        utime.sleep_ms(500)     # you shall not pass :D
+        utime.sleep_ms(500)
 
 def get_wifi_signal_strength(wlan):
     if wlan.isconnected():
@@ -120,6 +124,8 @@ else:
     print("Unable to retrieve signal strength.")
 
 print("ESP Wi-Fi OK")
+gc.collect()
+print(gc.mem_free())
 
 dis.draw_text(spleen16, 'SSID:', 0, 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
 dis.draw_text(spleen16, wlan.config('essid'), 5 * 8, 16, 1, dis.fgcolor, dis.bgcolor, 0, )
@@ -155,13 +161,16 @@ tw_ntp(must=True)
 
 # 檔案名稱
 filename = 'otalist.dat'
+
 # 取得目錄下的所有檔案和資料夾
 file_list = uos.listdir()
 print(file_list)
-# 檢查OTA檔案是否存在
+gc.collect()
+print(gc.mem_free())
+# 檢查檔案是否存在
 if filename in file_list:
     # 在這邊要做讀取OTA列表，然後進行OTA的執行
-    print("OTA檔案存在, checking files...")
+    print("OTA檔案存在, OTA checking files...")
     dis.draw_text(spleen16, "OTAing...", 0, 16 + 16 + 16, 1, dis.fgcolor, dis.bgcolor, 0, True, 0, 0)
     dis.dev.show()
     try:
@@ -169,9 +178,9 @@ if filename in file_list:
             lines = f.readlines()[0].strip()
 
         lines = lines.replace(' ', '')
-
         # 移除字串中的雙引號和空格，然後使用逗號分隔字串
         file_list = [file.strip('"') for file in lines.split(',')]
+
         import senko
         OTA = senko.Senko(
             user="pc0808f",  # Required
@@ -181,13 +190,15 @@ if filename in file_list:
             files=file_list
         )
 
+        gc.collect()
+        print(gc.mem_free())
         if OTA.update():
             print("Updated to the latest version!")
         else:
-            print("No changed-file for OTA!")
-    except:
-        print("Updated error!")
-    
+            print("Cannot find new-changed files for OTA, or check error")
+    except Exception as e:
+        print(f"Updated error:{e}")
+
     print("刪除OTA檔案, rebooting...")
     uos.remove(filename)
     machine.reset()
@@ -213,10 +224,11 @@ while True:
         pass
 
     print(st7735)
+
     # import micropython
     gc.collect()
-    # print(micropython.mem_info())
     print(gc.mem_free())
+    # micropython.mem_info()
     try:
         print("執行 Data_Collection_Main.py ...")
         execfile('Data_Collection_Main.py')

@@ -1,4 +1,4 @@
-VERSION = "SPHP1_V1.00e"
+VERSION = "SPHP1_V1.01a"
 
 import machine
 import binascii
@@ -65,7 +65,7 @@ class MainStateMachine:
             main_while_delay_seconds = 10
             LCD_update_flag['WiFi'] = True
             LCD_update_flag['Claw_State'] = True
-        elif (self.state == MainStatus.NONE_FEILOLI or self.state == MainStatus.WAITING_FEILOLI) and action == 'FEILOLI UART is OK':
+        elif (self.state == MainStatus.NONE_FEILOLI or self.state == MainStatus.WAITING_FEILOLI or self.state == MainStatus.STANDBY_FEILOLI) and action == 'FEILOLI UART is OK':
             self.state = MainStatus.STANDBY_FEILOLI
             # 以下執行"連上FEILOLI娃娃機後"相應的操作
             print('\n\rAction: FEILOLI UART is OK, MainStatus: STANDBY_FEILOLI')
@@ -187,13 +187,11 @@ def subscribe_MQTT_claw_recive_callback(topic, message):
             otafile = 'otalist.dat'
             if ('file_list' in data) and ('password' in data):
                 if data['password'] == 'c0b82a2c-4b03-42a5-92cd-3478798b2a90':
-                    #print("password checked")
                     publish_MQTT_claw_data(claw_1, 'fotaack')                    
                     with open(otafile, "w") as f:
                         f.write(''.join(data['file_list']))
-                    print("otafile 輸出完成，即將重開機...")
-                    utime.sleep(3)
-                    machine.reset()
+                    print("otafile 輸出完成")
+                    safe_reboot()
                 else:
                     print("password failed")
         elif topic.decode() == (mq_topic + '/commands'):
@@ -233,34 +231,35 @@ def subscribe_MQTT_claw_topic():  # MQTT_client暫時固定為mq_client_1
 
 def publish_data(mq_client, topic, data):
     try:
-        # mq_message = ujson.dumps(data)
         print("MQTT Publish topic:", topic)
         print("MQTT Publish data(JSON_str):", data)
         mq_client.publish(topic, data)
         print("MQTT Publish Successful")
     except Exception as e:
         print("MQTT Publish Error:", e)
-        now_main_state.transition('MQTT is not OK')
+        mq_client.disconnect()
+        now_main_state.transition('WiFi is disconnect')
 
 def get_file_info(filename):
     try:
         file_stat = uos.stat(filename)
-        file_size = file_stat[6]  # Index 6 is the file size
-        file_mtime = file_stat[8]  # Index 8 is the modification time
+        file_size = file_stat[6]  # Index 6:file size
+        file_mtime = file_stat[8]  # Index 8:modification time
         return file_size, file_mtime
     except OSError:
         return None, None
 
 def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選擇claw_1、claw_2、...，但MQTT_client暫時固定為mq_client_1
     global wifi
+    macid = my_internet_data.mac_address
+    mq_topic = macid + '/' + token
     if MQTT_API_select == 'sales':
+        mq_topic = mq_topic + '/sales'
         WCU_Freeplaytimes = (
                     claw_data.Number_of_Total_games - claw_data.Number_of_Original_Payment - claw_data.Number_of_Coin - claw_data.Number_of_Gift_Payment)
         if WCU_Freeplaytimes < 0:
             WCU_Freeplaytimes = 0
             # 上行是 Thomas 測試
-        macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/sales'
         MQTT_claw_data = {
             "Epayplaytimes": claw_data.Number_of_Original_Payment,
             "Coinplaytimes": claw_data.Number_of_Coin,
@@ -270,9 +269,8 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
             "time": utime.time()
         }
     elif MQTT_API_select == 'status':
+        mq_topic = mq_topic + '/status'
         signal_strength = get_wifi_signal_strength(wifi)
-        macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/status'
         if now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI :
             MQTT_claw_data = {
                 "status": "%02d" % (claw_data.Error_Code_of_Machine),
@@ -286,29 +284,25 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
                 "time":   utime.time()
             }
     elif MQTT_API_select == 'commandack-pong':
-        macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/commandack'
+        mq_topic = mq_topic + '/commandack'
         MQTT_claw_data = {
             "ack": "pong",
             "time": utime.time()
         }
     elif MQTT_API_select == 'commandack-version':
-        macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/commandack'
+        mq_topic = mq_topic + '/commandack'
         MQTT_claw_data = {
             "ack":  VERSION,
             "time": utime.time()
         }
     elif MQTT_API_select == 'fotaack':
-        macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/fotaack'
+        mq_topic = mq_topic + '/fotaack'
         MQTT_claw_data = {
             "ack": "OK",
             "time": utime.time()
         }
     elif MQTT_API_select == 'commandack-clawreboot':
-        macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/commandack'
+        mq_topic = mq_topic + '/commandack'
         if para1=="" :
             MQTT_claw_data = {
                 "ack": "OK",
@@ -321,8 +315,7 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
                 "time": utime.time()
             }            
     elif MQTT_API_select == 'commandack-clawstartgame':
-        macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/commandack'
+        mq_topic = mq_topic + '/commandack'
         if para1=="" :
             MQTT_claw_data = {
                 "ack": "OK",
@@ -335,7 +328,7 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
                 "time": utime.time()
             }
     elif MQTT_API_select == 'commandack-fileinfo':
-        #check file exist, read file info
+        mq_topic = mq_topic + '/commandack'
         file_name = para1
         file_exist = 0
         file_date = ""
@@ -344,30 +337,18 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
             file_stat = uos.stat(file_name)
             file_size, file_mtime = get_file_info(file_name)
             if file_size is not None:
-                #print("File Size:", file_size, "bytes")
-
                 if file_mtime is not None:
                     formatted_date = utime.localtime(file_mtime)
-                    formatted_date_str = "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}".format(
-                        formatted_date[0], formatted_date[1], formatted_date[2],
-                        formatted_date[3], formatted_date[4], formatted_date[5]
-                    )
+                    formatted_date_str = "%04d-%02d-%02d %02d:%02d:%02d" % formatted_date[:6]
                     file_date=formatted_date_str
                     file_exist=1
-                    #print("File Date:", formatted_date_str)
                 else:
                     file_exist=2
                     formatted_date_str="N/A"
-                    #print("File Date: N/A")
             else:
-                #print("Unable to retrieve file information.")
                 file_exist=80
         except OSError:
-            #print("File does not exist.")
             file_exist=0
-        
-        macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/commandack'
         MQTT_claw_data = {
             "ack": "OK",
             "exist" : file_exist,
@@ -375,21 +356,8 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
             "size" : file_size,
             "time": utime.time()
         }             
-#         if para1=="" :
-#             MQTT_claw_data = {
-#                 "ack": "OK",
-#                 "time": utime.time()
-#             }
-#         else :
-#             MQTT_claw_data = {
-#                 "ack": "OK",
-#                 "state" : para1,
-#                 "time": utime.time()
-#             }
     elif MQTT_API_select == 'commandack-fileremove':
-        #check file exist
-        #yes remove it, reply remove ok
-        #no reply no file
+        mq_topic = mq_topic + '/commandack'
         file_name = para1
         result=""
         try:
@@ -399,32 +367,15 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
                 result="remove ok"
             else:
                 result="CAN NOT REMOVE main.py"
-
         except OSError:
             #print("File does not exist.")
             file_exist=0
             result="NO FILE!" 
-        
-        macid = my_internet_data.mac_address
-        mq_topic = macid + '/' + token + '/commandack'
         MQTT_claw_data = {
             "ack": "OK",
             "result" : result,
             "time": utime.time()
-        }           
-#         macid = my_internet_data.mac_address
-#         mq_topic = macid + '/' + token + '/commandack'
-#         if para1=="" :
-#             MQTT_claw_data = {
-#                 "ack": "OK",
-#                 "time": utime.time()
-#             }
-#         else :
-#             MQTT_claw_data = {
-#                 "ack": "OK",
-#                 "state" : para1,
-#                 "time": utime.time()
-#             }               
+        }
     mq_json_str = ujson.dumps(MQTT_claw_data)
     publish_data(mq_client_1, mq_topic, mq_json_str)
 
@@ -598,9 +549,6 @@ claw_check_timer_counter = 0
 def three_timer_task():
     while True:
         try:
-            GPO_IO23test.value(1)
-            # print('3Ta開機秒數:', utime.ticks_ms() / 1000)
-
             global claw_check_timer_counter
             claw_check_timer_counter = (claw_check_timer_counter + 1) % claw_check_timer_period
             if claw_check_timer_counter == 0:
@@ -608,8 +556,6 @@ def three_timer_task():
             LCD_update_timer_callback()
             server_check_timer_callback()
         
-            GPO_IO23test.value(0)
-            # print('3Tb開機秒數:', utime.ticks_ms() / 1000)
         except OSError as e:
             print("3t error:", e)
         utime.sleep_ms(1000)                         # 休眠一小段時間，避免過度使用CPU資源
@@ -686,37 +632,35 @@ def LCD_update_timer_callback():
             dis.dev.show()
     elif (LCD_update_flag['Time']):
         LCD_update_flag['Time'] = False  
-        # 获取当前时间戳
         timestamp = utime.time()
-        # 转换为本地时间
-        local_time = utime.localtime(timestamp)
+        local_time = utime.localtime(timestamp) # 轉換為本地時間
         # 格式化为 "mm/dd hh:mm" 格式的字符串
-        formatted_time = "{:02d}/{:02d} {:02d}:{:02d}".format(local_time[1], local_time[2], local_time[3], local_time[4])
+        formatted_time = "%02d/%02d %02d:%02d" % local_time[1:5]
         dis.draw_text(spleen16,  formatted_time, 5 * 8, 6 * 16, 1, dis.fgcolor, dis.bgcolor, -1, True, 0, 0)    #顯示時間
         dis.dev.show()
 
 # 定義server_check計時器回調函式 (每1秒執行1次)
 def server_check_timer_callback():
-    global WDT_feed_flag, mq_client_1
+    global WDT_feed_flag, mq_client_1, server_report_flag
     if now_main_state.state == MainStatus.NONE_FEILOLI or now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI:
         try:
             # 更新 MQTT Subscribe
             mq_client_1.check_msg()
             #mq_client_1.ping()
-        except OSError as e:
-            print("WiFi is disconnect")
-            now_main_state.transition('WiFi is disconnect')
-            mq_client_1.disconnect()
-            return
 
-        global server_report_flag
-        if server_report_flag == 1:
-            server_report_flag = 0
-            if now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI :
-                publish_MQTT_claw_data(claw_1, 'sales')
-            # if claw_1.Error_Code_of_Machine != 0x00 :
-            publish_MQTT_claw_data(claw_1, 'status')
-            WDT_feed_flag = 1
+            if server_report_flag == 1:
+                server_report_flag = 0
+                if now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI :
+                    publish_MQTT_claw_data(claw_1, 'sales')
+                # if claw_1.Error_Code_of_Machine != 0x00 :
+                publish_MQTT_claw_data(claw_1, 'status')
+                WDT_feed_flag = 1
+
+        except OSError as e:
+            print("MQTT Check Error:", e)
+            # mq_client_1.disconnect()
+            now_main_state.transition('WiFi is disconnect')
+            return
 
 server_report_flag = 0
 server_report_period = 3*6   # 3分鐘=3*6, 單位10秒
@@ -728,66 +672,77 @@ def server_report_timer_callback(timer):
     server_report_counter = (server_report_counter + 1) % server_report_period
     if server_report_counter == 0:
         server_report_flag = 1
-        
-GPO_IO21test = machine.Pin(21, machine.Pin.OUT)
-GPO_IO21test.value(0)
-utime.sleep_ms(100)
-IO21value = 1
-GPO_IO21test.value(IO21value)
 
-GPO_IO23test = machine.Pin(23, machine.Pin.OUT)
-GPO_IO23test.value(0)
-utime.sleep_ms(100)
-IO23value = 1
-GPO_IO23test.value(1)
-utime.sleep_ms(100)
-GPO_IO23test.value(0)
 
 # 定義GPI中斷處理函式
-PAYOUT_falling_time = utime.ticks_ms()
+PAYOUT_last_falling_time = utime.ticks_ms()
 PAYOUT_last_rising_time = utime.ticks_ms()
+PAYOUT_last_value = -1   # -1 代表未知狀態
 def GPI_interrupt_handler(pin):
-    global PAYOUT_falling_time, PAYOUT_last_rising_time, IO21value
-    IO21value = not IO21value
-    GPO_IO21test.value(IO21value)
-    
-    PAYOUT_value = GPIO_CardReader_PAYOUT.value()
-    PAYOUT_now_time = utime.ticks_ms()
-#    print('PAYOUT_start_time(ms):', PAYOUT_now_time)
     if pin == GPIO_CardReader_PAYOUT :
-        print("PAYOUT收到中斷:", PAYOUT_value)
-        if PAYOUT_value == 0 :
-            PAYOUT_falling_time = PAYOUT_now_time
-        elif PAYOUT_value == 1 :
-            PAYOUT_rising_time = PAYOUT_now_time
-            PAYOUT_hipulse_time = PAYOUT_falling_time - PAYOUT_last_rising_time
-            PAYOUT_lowpulse_time = PAYOUT_rising_time - PAYOUT_falling_time
-            print("中斷PAYOUT收到Hi Pulse，寬度(ms):", PAYOUT_hipulse_time, ",和Low Pulse，寬度(ms):", PAYOUT_lowpulse_time)
-            if PAYOUT_hipulse_time >= 100 and (50 <= PAYOUT_lowpulse_time and PAYOUT_lowpulse_time <=200) :
-                print("Pulse的Hi和Lo寬度都正確，啟動娃娃機遊戲")
-                uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)   
-            else :
-                print("Pulse的Hi或Lo寬度不正確，不進行任何動作")
-            PAYOUT_last_rising_time = PAYOUT_rising_time            
-#    print('PAYOUT_end_time(ms):', time.ticks_ms())
+        global PAYOUT_last_falling_time, PAYOUT_last_rising_time, PAYOUT_last_value
+        PAYOUT_value = GPIO_CardReader_PAYOUT.value()
+        PAYOUT_now_time = utime.ticks_ms()
+        if PAYOUT_last_value != PAYOUT_value :
+            PAYOUT_last_value = PAYOUT_value
+            print("PAYOUT收到中斷和變化:", PAYOUT_value)
+            if PAYOUT_value == 0 :      # 1->0
+                PAYOUT_last_falling_time = PAYOUT_now_time
+            elif PAYOUT_value == 1 :    # 0->1
+                PAYOUT_rising_time = PAYOUT_now_time
+                PAYOUT_hipulse_ms = utime.ticks_diff(PAYOUT_last_falling_time, PAYOUT_last_rising_time)
+                PAYOUT_lowpulse_ms = utime.ticks_diff(PAYOUT_rising_time, PAYOUT_last_falling_time)
+                print("中斷PAYOUT收到Hi Pulse寬度(ms):", PAYOUT_hipulse_ms, ",和Low Pulse寬度(ms):", PAYOUT_lowpulse_ms)
+                if PAYOUT_hipulse_ms >= 50 and (5 <= PAYOUT_lowpulse_ms <= 300) :
+                    print("Pulse的Hi和Lo寬度都正確，啟動娃娃機遊戲。")
+                    uart_FEILOLI_send_packet(KindFEILOLIcmd.Send_Starting_once_game)   
+                else :
+                    print("Pulse的Hi或Lo寬度不正確，不進行任何動作")
+                PAYOUT_last_rising_time = PAYOUT_rising_time
 
-############################################# 初始化 #############################################
+
+def safe_reboot():
+    print("準備重開機，先關閉刷卡功能...")
+    # 關掉刷卡功能
+    GPO_CardReader_EPAY_EN.value(0)
+    utime.sleep(3)
+    machine.reset()
+
+total_uptime_seconds = 0.0
+last_check_time = 0
+def get_uptime_str():
+    global total_uptime_seconds, last_check_time
+    current_time = utime.ticks_ms()
+    elapsed_seconds = utime.ticks_diff(current_time, last_check_time) / 1000.0
+    total_uptime_seconds += elapsed_seconds # AI說浮點數加總的誤差小到可以不計較
+    last_check_time = current_time
+    
+    seconds = int(total_uptime_seconds)
+    days = seconds // 86400
+    seconds %= 86400
+    hours = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds_f = total_uptime_seconds % 60
+    
+    return f"{days}天 {hours}時 {minutes:2d}分 {seconds_f:5.2f}秒"
+
+############################## 初始化 ##############################
 
 print('\n\r開始執行Data_Collection_Main.py初始化，版本為:', VERSION)
-print('開機秒數:', utime.ticks_ms() / 1000)
+print('1開機秒數:', utime.ticks_ms() / 1000)
 
 # import micropython
 gc.collect()
-# print(micropython.mem_info())
 print(gc.mem_free())
+# micropython.mem_info()
           
 # 開啟 token 檔案
 load_token()
 
 WDT_feed_flag = 0
-wdt=WDT(timeout=1000*60*10)
+wdt=WDT(timeout=1000*60*10) # 10分鐘
 
-print('1開機秒數:', utime.ticks_ms() / 1000)
 # LCD配置
 try:
     print(st7735)
@@ -811,6 +766,7 @@ except Exception as e:
     except Exception as e:
         print('st7735 init Error:', e)
         machine.reset()
+
 LCD_update_flag = {
     'Uniform': True,
     'WiFi': False,
@@ -822,16 +778,18 @@ LCD_update_flag = {
 print('2開機秒數:', utime.ticks_ms() / 1000)
 
 # GPIO配置
-# 卡機端的TV-1QR、觸控按鈕配置
+# 卡機端的TV-1、觸控按鈕配置
 GPIO_CardReader_PAYOUT = machine.Pin(18, machine.Pin.IN, machine.Pin.PULL_UP)
 GPO_CardReader_EPAY_EN = machine.Pin(19, machine.Pin.OUT)
 GPO_CardReader_EPAY_EN.value(0)
 
-# 娃娃機端的投幣器、電眼配置
-#GPO_Claw_Coin_EN = machine.Pin(5, machine.Pin.OUT)
+# 檢查GPIO初始值
+PAYOUT_last_value = GPIO_CardReader_PAYOUT.value()
+print(f"Init GPIO配置: PAYOUT")
+print(f"Read value: {PAYOUT_last_value}" )
 
 # GPIO 中斷配置
-# 設定TV-1QR PAYOUT中斷，觸發條件為正緣和負緣
+# 設定TV-1 中斷，觸發條件為正緣和負緣
 GPIO_CardReader_PAYOUT.irq(trigger = ( machine.Pin.IRQ_FALLING | machine.Pin.IRQ_RISING ), handler = GPI_interrupt_handler)
 
 # 創建狀態機
@@ -860,24 +818,32 @@ while True:
     if WDT_feed_flag == 1 :
         WDT_feed_flag = 0
         wdt.feed()
-        print('WDT fed! 開機秒數:', utime.ticks_ms() / 1000)
+        print('WDT fed! 開機時間:', get_uptime_str())
 
     current_time = utime.ticks_ms()
+
+    current_days = current_time // (1000 * 60 * 60 * 24)
+    if current_days >= 3 and  utime.localtime()[3] == 3:  
+        safe_reboot()   # 開機超過3天，並且是早上3點時，進行重開機
+    '''
+    current_hours = current_time // (1000 * 60 * 60)
+    if current_hours >= 3 and  utime.localtime()[4] == 30:    
+        safe_reboot()   # 開機超過3小時，並且是整點後的30分鐘時，進行重開機。debug用，下次開機是XX:30
+    '''
     if (utime.ticks_diff(current_time, last_time) >= main_while_delay_seconds * 1000):
-        last_time = utime.ticks_ms()
+        last_time = current_time
 
         if now_main_state.state == MainStatus.NONE_WIFI:
-            print('\n\rnow_main_state: WiFi is disconnect, 開機秒數:', current_time / 1000)
+            print('\n\rnow_main_state: WiFi is disconnect, 開機時間:', get_uptime_str())
             my_internet_data = connect_wifi()
-            # 打印 myInternet 内容
             print("My IP Address:", my_internet_data.ip_address)
             print("My MAC Address:", my_internet_data.mac_address)
             now_main_state.transition('WiFi is OK')
         elif now_main_state.state == MainStatus.NONE_INTERNET:
-            print('\n\rnow_main_state: WiFi is OK, 開機秒數:', current_time / 1000)
+            print('\n\rnow_main_state: WiFi is OK, 開機時間:', get_uptime_str())
             now_main_state.transition('Internet is OK')  # 目前不做判斷，狀態機直接往下階段跳轉
         elif now_main_state.state == MainStatus.NONE_MQTT:
-            print('now_main_state: Internet is OK, 開機秒數:', current_time / 1000)
+            print('now_main_state: Internet is OK, 開機時間:', get_uptime_str())
             mq_client_1 = connect_mqtt()
             if mq_client_1 is not None:
                 try:
@@ -885,22 +851,16 @@ while True:
                     now_main_state.transition('MQTT is OK')
                 except:
                     print('MQTT subscription has failed')
-            gc.collect()
-            print(gc.mem_free())
         elif now_main_state.state == MainStatus.NONE_FEILOLI:
-            print('\n\rnow_main_state: MQTT is OK (FEILOLI UART is not OK), 開機秒數:', current_time / 1000)
-            gc.collect()
-            print(gc.mem_free())
+            print('\n\rnow_main_state: MQTT is OK (FEILOLI UART is not OK), 開機時間:', get_uptime_str())
         elif now_main_state.state == MainStatus.STANDBY_FEILOLI:
-            print('\n\rnow_main_state: FEILOLI UART is OK, 開機秒數:', current_time / 1000)
-            gc.collect()
-            print(gc.mem_free())
+            print('\n\rnow_main_state: FEILOLI UART is OK, 開機時間:', get_uptime_str())
         elif now_main_state.state == MainStatus.WAITING_FEILOLI:
-            print('\n\rnow_main_state: FEILOLI UART is witing, 開機秒數:', current_time / 1000)
-            gc.collect()
-            print(gc.mem_free())
+            print('\n\rnow_main_state: FEILOLI UART is witing, 開機時間:', get_uptime_str())
         else:
             print('\n\rInvalid action! now_main_state:', now_main_state.state)
-            print('開機秒數:', current_time / 1000)
+            print('開機時間:', get_uptime_str())
 
+        gc.collect()
+        print(gc.mem_free())
         LCD_update_flag['Time'] = True

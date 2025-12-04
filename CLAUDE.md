@@ -9,7 +9,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 硬體平台
 - **目標硬體**: ESP32 開發板
 - **硬體版本**: SPHP_HWv1 (開心小卡硬體改成宏碁卡機使用)
+- **當前韌體版本**: SPHP1_V1.01a
 - **主要差異**: SPHP1_V1.00C 和 HP_V1.00c 的差異只有 EPAY_EN 的 IO Define 不一樣
+
+### 程式碼規範
+- **檔案編碼**: UTF-8
+- **行尾字元**: LF (Unix style)
+- **模組使用**: 使用 `uos` 而非 `os` (符合 MicroPython 標準)
 
 ### 韌體架構
 
@@ -70,18 +76,26 @@ smartpay/
 2. 更新版本號 (在 Data_Collection_Main.py 第一行)
 3. 檢查 sourceFiles 與上一版的差異
 4. 複製 sourceFiles 到 releaseFiles/latestVersion (供 OTA 使用)
-5. 壓縮 latestVersion 為 SPHP1_Vxxxxx.zip 備份
+5. 壓縮 latestVersion 為 SPHP1_Vxxxxx.zip 備份（若需要 OTA 發布）
 6. 更新 README.md 的版本歷史記錄
 7. 建立 git commit (格式: `年/月/日_硬體版本_韌體版本, 發布人`)
 8. 確認 GitHub commit 內容合理
 
+**注意**: 若該版本不進行 OTA 發布，可跳過壓縮備份步驟
+
 ### Commit 訊息格式
 ```
-**2025/7/29_SPHP1_V1.00d, Thomas**
-1. 新增Sam寫的ntptime.py
-2. 更新Sam寫的senko.py
-3. 要再測試新版senko可否就能fota，不會再發生記憶體爆掉
-4. 新增to-be-do list和push check list
+**2025/12/4_SPHP1_V1.01a, Thomas**
+1. main.py 程式碼修改
+  a. 參考智付小卡類比版，同步成相似的log列印和程式碼運行流程
+  b. Import 順序和結構重整
+  c. GPIO 配置重新組織
+  ... (以下省略)
+2. Data_Collection_Main.py 程式碼修改
+  a. 參考智付小卡類比版，同步成相似的log列印和程式碼運行流程
+  b. 狀態機邏輯修正
+  c. MQTT 錯誤處理優化
+  ... (以下省略)
 ```
 
 ## OTA (Over-The-Air) 更新機制
@@ -149,6 +163,15 @@ smartpay/
 - 使用流式處理避免大檔案佔用記憶體 (senko.py)
 - 監控 `gc.mem_free()` 確保記憶體充足
 
+### MicroPython 模組使用
+- 使用 `uos` 取代標準 Python 的 `os` 模組
+- 常用函式：
+  - `uos.listdir()` - 列出目錄內容
+  - `uos.stat()` - 取得檔案資訊
+  - `uos.remove()` - 刪除檔案
+  - `uos.rename()` - 重新命名檔案
+- 所有檔案操作都應使用 `try-except OSError` 進行錯誤處理
+
 ### Watchdog Timer
 - **主程式**: 10 分鐘 timeout (1000*60*10)
 - **main.py**: 5 分鐘 timeout (1000*60*5)
@@ -172,6 +195,14 @@ smartpay/
 2. **OTA 失敗**: 檢查 GitHub 連線、檔案路徑、senko.py 流式下載
 3. **娃娃機無法連線**: 檢查 UART 接線、封包格式、checksum 計算
 4. **MQTT 斷線**: 檢查 WiFi 連線、MQTT 憑證、網路穩定性
+5. **Interrupt WDT Timeout (看門狗超時重開機)**:
+   - **現象**: `Guru Meditation Error: Core 0 panic'ed (Interrupt wdt timeout on CPU0)`
+   - **常見原因**: PAYOUT (Pin 18) 硬體接線問題導致 GPIO 中斷頻繁觸發
+   - **檢查方式**:
+     - 查看 log 是否有大量 `PAYOUT收到中斷和變化` 訊息
+     - 檢查是否在短時間內出現數十次中斷
+   - **解決方法**: 檢查並修正 Pin 18 硬體接線（可能是接觸不良或雜訊干擾）
+   - **記錄時間**: 2025/12/2
 
 ## 特殊注意事項
 
