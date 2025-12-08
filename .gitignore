@@ -167,3 +167,10 @@ cython_debug/
 
 # mpy
 mpy/
+
+# Test files
+test_files/
+
+# Sensitive configuration files
+**/token.dat
+**/wifi.dat
