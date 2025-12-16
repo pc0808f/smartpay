@@ -1,4 +1,4 @@
-VERSION = "SPHP1_V1.01a"
+VERSION = "SPHP1_V1.01b"
 
 import machine
 import binascii
@@ -363,7 +363,7 @@ def publish_MQTT_claw_data(claw_data, MQTT_API_select, para1=""):  # 可以選�
         try:
             file_stat = uos.stat(file_name)
             if file_name != "main.py":
-                uos.remove(para1)
+                uos.remove(file_name)
                 result="remove ok"
             else:
                 result="CAN NOT REMOVE main.py"
@@ -390,111 +390,71 @@ class KindFEILOLIcmd:
     Ask_Coin_account = 322
     Ask_Machine_setting = 431
 
-class ReceivedClawData:
+class ReceivedClawData: # 參考 docs\娃娃機通訊協議.md
     def __init__(self):
-        self.CMD_Verification_code_and_Card_function = 0    # for 一、通訊說明\回覆修改驗證碼、刷卡功能的指令
-        self.Verification_code = bytearray(4)               # for 一、通訊說明\驗證碼
-        self.Machine_Code_number = bytearray(2)             # for 一、通訊說明\機台代號
-        self.Machine_FW_version = bytearray(2)              # for 一、通訊說明\程式版本
-        self.Feedback_Card_function = 0                     # for 一、通訊說明\回覆目前刷卡功能
-
-        self.CMD_Control_Machine = 0                        # for 二、主控制\機台狀態\回覆控制指令 (機台回覆控制代碼)
-        self.Status_of_Current_machine = bytearray(2)       # for 二、主控制\機台狀態\機台目前狀況
-        self.Time_of_Current_game = 0                       # for 二、主控制\機台狀態\當機台目前狀況[0]為0x10=遊戲開始(未控制搖桿)時，回傳的遊戲時間
-        self.Game_amount_of_Player = 0                      # for 二、主控制\機台狀態\玩家遊戲金額(累加金額)
-        self.Way_of_Starting_game = 0                       # for 二、主控制\機台狀態\遊戲啟動方式
-        self.Cumulation_amount_of_Sale_card = 0             # for 二、主控制\機台狀態\售價小卡顯示用累加金額
-
-        self.Payment_amount_of_This_order = 0               # for 二、主控制\傳送交易資料\此次扣款金額
-        self.Number_of_Original_games_to_Start = 0          # for 二、主控制\傳送交易資料\啟動原局數
-        self.Number_of_Gift_games_to_Start = 0              # for 二、主控制\傳送交易資料\啟動贈局數
-        self.Number_dollars_of_Per_game = 0                 # for 二、主控制\傳送交易資料\每局幾元
-        self.Time_of_Payment_countdown_Or_fail = 0          # for 二、主控制\等待刷卡倒數/交易失敗\IPC倒數時間or失敗
-        self.CMD_Mode_of_Payment = 0                        # for 二、主控制\回覆遊戲啟動方式(01=電子支付)
-
-        # 未定義                                            # for 二、主控制\套餐設定、參數回報
-
-        self.Number_of_Original_Payment = 0     # for 三、帳目查詢\遠端帳目\悠遊卡支付次數
-        self.Number_of_Gift_Payment = 0         # for 三、帳目查詢\遠端帳目\悠遊卡贈送次數
-        self.Number_of_Coin = 0                 # for 三、帳目查詢\遠端帳目\投幣次數
-        self.Number_of_Award = 0                # for 三、帳目查詢\遠端帳目、投幣帳目\禮品出獎次數
-        self.Bank_of_Award_rate = 0             # for 三、帳目查詢\投幣帳目\中獎率銀行
-        self.Number_of_Total_games = 0          # for 三、帳目查詢\投幣帳目\總遊戲次數
-        # 以下 四、五、六都還沒檢查、還沒逐一順過
-        '''
-        self.CMD_Item_of_Machine_Setting = 0        # for 四、機台設定查詢
-        self.Time_of_game = 0                       # for 四、機台設定查詢\基本設定A
-        self.Time_of_Keeping_cumulation = 0         # for 四、機台設定查詢\基本設定A
-        self.Time_of_Show_music = 0                 # for 四、機台設定查詢\基本設定A
-        self.Enable_of_Midair_Grip = 0              # for 四、機台設定查詢\基本設定A
-        self.Amount_of_Award = 0                    # for 四、機台設定查詢\基本設定A
-        self.Amount_of_Present_cumulation = 0       # for 四、機台設定查詢\基本設定A
-        self.Delay_of_Push_talon = 0                # for 四、機台設定查詢\基本設定B
-        self.Delay_of_Suspend_pulled_talon = 0      # for 四、機台設定查詢\基本設定B
-        self.Enable_random_of_Pushing_talon = 0     # for 四、機台設定查詢\基本設定B
-        self.Enable_random_of_Clamping = 0          # for 四、機台設定查詢\基本設定B
-        self.Time_of_Push_talon = 0                 # for 四、機台設定查詢\基本設定B
-        self.Time_of_Suspend_and_Pull_talon = 0     # for 四、機台設定查詢\基本
-
-        self.Delay_of_Pull_talon = 0                            # for 四、機台設定查詢\基本設定B
-        self.Enable_of_Sales_promotion = 0                      # for 四、機台設定查詢\基本設定C
-        self.Which_number_starting_when_Sales_promotion = 0     # for 四、機台設定查詢\基本設定C
-        self.Number_of_Strong_grip_when_Sales_promotion = 0     # for 四、機台設定查詢\基本設定C
-        self.Value_of_Hi_voltage = 0                    # for 四、機台設定查詢\抓力電壓
-        self.Value_of_Mid_voltage = 0                   # for 四、機台設定查詢\抓力電壓
-        self.Value_of_Lo_voltage = 0                    # for 四、機台設定查詢\抓力電壓
-        self.Distance_of_Mid_voltage_and_Top = 0        # for 四、機台設定查詢\抓力電壓
-        self.Hi_voltage_of_Guaranteed_prize = 0         # for 四、機台設定查詢\抓力電壓
-        self.Speed_of_Moving_forward = 0                # for 四、機台設定查詢\馬達速度
-        self.Speed_of_Moving_back = 0                   # for 四、機台設定查詢\馬達速度
-        self.Speed_of_Moving_left = 0                   # for 四、機台設定查詢\馬達速度
-        self.Speed_of_Moving_right = 0                  # for 四、機台設定查詢\馬達速度
-        self.Speed_of_Moving_up = 0                     # for 四、機台設定查詢\馬達速度
-        self.Speed_of_Moving_down = 0                   # for 四、機台設定查詢\馬達速度
-        self.RPM_of_All_horizontal_sides = 0            # for 四、機台設定查詢\馬達速度
-        self.CMD_State_of_Display = 0           # for 五、悠遊卡功能\維修顯示
-        self.X_Value_of_02_State = 0            # for 五、悠遊卡功能\維修顯示
-        self.CMD_Backstage_function = 0         # for 五、悠遊卡功能\後台功能
-        self.Error_Code_of_IPC_Feedback = 0     # for 五、悠遊卡功能\後台功能
-        '''
-        self.Error_Code_of_Machine = 99          # for 六、 機台故障代碼表
+        # for 一、通訊說明
+        self.CMD_Verification_code_and_Card_function = 0
+        self.Verification_code = bytearray(4)
+        self.Machine_Code_number = bytearray(2)
+        self.Machine_FW_version = bytearray(2)          
+        self.Feedback_Card_function = 0
+        # for 二、主控制
+        self.CMD_Control_Machine = 0
+        self.Status_of_Current_machine = bytearray(2)
+        self.Time_of_Current_game = 0
+        self.Game_amount_of_Player = 0
+        self.Way_of_Starting_game = 0
+        self.Cumulation_amount_of_Sale_card = 0
+        self.Payment_amount_of_This_order = 0
+        self.Number_of_Original_games_to_Start = 0
+        self.Number_of_Gift_games_to_Start = 0
+        self.Number_dollars_of_Per_game = 0
+        self.Time_of_Payment_countdown_Or_fail = 0
+        self.CMD_Mode_of_Payment = 0
+        # for 三、帳目查詢
+        self.Number_of_Original_Payment = 0
+        self.Number_of_Gift_Payment = 0
+        self.Number_of_Coin = 0
+        self.Number_of_Award = 0
+        self.Bank_of_Award_rate = 0
+        self.Number_of_Total_games = 0
+        # for 六、 機台故障代碼表
+        self.Error_Code_of_Machine = 99
 
 # 发送封包給娃娃機的副程式
 FEILOLI_packet_id = 0
-
 def uart_FEILOLI_send_packet(FEILOLI_cmd):
     global FEILOLI_packet_id
     FEILOLI_packet_id = (FEILOLI_packet_id + 1) % 256
+    # 初始化預設封包: Header(0xBB 0x73) + Data(11個0x00 + packet_id + 0x00) + Checksum初始值(0xAA)
+    uart_send_packet = bytearray([0xBB, 0x73] + [0]*11 + [FEILOLI_packet_id, 0x00, 0xAA])
+
     if FEILOLI_cmd == KindFEILOLIcmd.Ask_Machine_status:
-        uart_send_packet = bytearray([0xBB, 0x73, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00,
-                                      0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
+        uart_send_packet[2:4] = bytearray([0x01, 0x01])
     elif FEILOLI_cmd == KindFEILOLIcmd.Send_Machine_reboot:
-        uart_send_packet = bytearray([0xBB, 0x73, 0x01, 0x01, 0x05, 0x00, 0x00, 0x00,
-                                      0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
-    elif FEILOLI_cmd == KindFEILOLIcmd.Send_Machine_shutdown:
-        pass
-    elif FEILOLI_cmd == KindFEILOLIcmd.Send_Payment_countdown_Or_fail:
-        pass
+        uart_send_packet[2:5] = bytearray([0x01, 0x01, 0x05])
+    # elif FEILOLI_cmd == KindFEILOLIcmd.Send_Machine_shutdown:             # 未完成
+    # elif FEILOLI_cmd == KindFEILOLIcmd.Send_Payment_countdown_Or_fail:    # 未完成
     elif FEILOLI_cmd == KindFEILOLIcmd.Send_Starting_once_game:
-        uart_send_packet = bytearray([0xBB, 0x73, 0x01, 0x02, 0x01, 0x01, 0x00, 0x00,
-                                      0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
+        uart_send_packet[2:6] = bytearray([0x01, 0x02, 0x01, 0x01])
     elif FEILOLI_cmd == KindFEILOLIcmd.Ask_Transaction_account:
-        uart_send_packet = bytearray([0xBB, 0x73, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00,
-                                      0x00, 0x00, 0x00, 0x00, 0x00, FEILOLI_packet_id, 0x00, 0xAA])
-    if uart_send_packet[13] == FEILOLI_packet_id:
-        for i in range(2, 14):
-            uart_send_packet[15] ^= uart_send_packet[i]
-        uart_FEILOLI.write(uart_send_packet)
-        print("Sent packet to 娃娃機:    ", ''.join(['{:02X} '.format(byte) for byte in uart_send_packet]))
+        uart_send_packet[2:4] = bytearray([0x02, 0x01])
     else:
         print("FEILOLI_cmd 是無效的指令:", FEILOLI_cmd)
+        return
+        
+    for i in range(2, 14):
+        uart_send_packet[15] ^= uart_send_packet[i]
+    uart_FEILOLI.write(uart_send_packet)
+    print("Sent packet to 娃娃機:    ", ''.join(['{:02X} '.format(byte) for byte in uart_send_packet]))
+
 
 # 建立佇列
 uart_FEILOLI_rx_queue = []
 
 # 從佇列中讀取資料的任務
 def uart_FEILOLI_recive_packet_task():
-    global claw_1, uart_FEILOLI
+    global claw_1, uart_FEILOLI, new_sales_flag
     while True:
         if uart_FEILOLI.any() :
             receive_data = uart_FEILOLI.readline()
@@ -511,7 +471,7 @@ def uart_FEILOLI_recive_packet_task():
                             uart_recive_packet[i] = uart_FEILOLI_rx_queue.pop(0)
                             uart_recive_check_sum ^= uart_recive_packet[i]
                         if uart_recive_check_sum == 0x00 :  # check sum算完正確，得到正確16Byte
-                            print("Recive packet from 娃娃機:", uart_recive_packet)
+                            print("Recive packet from 娃娃機:", ''.join(['{:02X} '.format(byte) for byte in uart_recive_packet]))
                             ######################  在這裡進行packet的處理  ############################################
                             if uart_recive_packet[2] == 0x81 and uart_recive_packet[3] == 0x01 :                 # CMD => 二、主控制\機台狀態
                                 claw_1.CMD_Control_Machine = uart_recive_packet[4]                                  # 回覆控制指令 (機台回覆控制代碼)
@@ -530,6 +490,7 @@ def uart_FEILOLI_recive_packet_task():
                                 claw_1.Number_of_Award = uart_recive_packet[10] * 256 + uart_recive_packet[11]              # 禮品出獎次數
                                 claw_1.Error_Code_of_Machine = uart_recive_packet[12]                   # 六、 機台故障代碼表
                                 print("Recive 娃娃機 : 三、 帳目查詢\遠端帳目")  
+                                new_sales_flag = True
                             if claw_1.Error_Code_of_Machine != 0x00 :
                                 GPO_CardReader_EPAY_EN.value(0)   # 娃娃機有故障碼，暫停卡機支付功能
                                 # GPO_CardReader_EPAY_EN.value(1)   # For 測試，不管是否故障，都啟動卡機支付功能
@@ -555,8 +516,7 @@ def three_timer_task():
                 claw_check_timer_callback()
             LCD_update_timer_callback()
             server_check_timer_callback()
-        
-        except OSError as e:
+        except Exception as e:
             print("3t error:", e)
         utime.sleep_ms(1000)                         # 休眠一小段時間，避免過度使用CPU資源
 
@@ -641,7 +601,7 @@ def LCD_update_timer_callback():
 
 # 定義server_check計時器回調函式 (每1秒執行1次)
 def server_check_timer_callback():
-    global WDT_feed_flag, mq_client_1, server_report_flag
+    global WDT_feed_flag, mq_client_1, server_report_flag, new_sales_flag
     if now_main_state.state == MainStatus.NONE_FEILOLI or now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI:
         try:
             # 更新 MQTT Subscribe
@@ -650,8 +610,9 @@ def server_check_timer_callback():
 
             if server_report_flag == 1:
                 server_report_flag = 0
-                if now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI :
+                if new_sales_flag and (now_main_state.state == MainStatus.STANDBY_FEILOLI or now_main_state.state == MainStatus.WAITING_FEILOLI):
                     publish_MQTT_claw_data(claw_1, 'sales')
+                    new_sales_flag = False
                 # if claw_1.Error_Code_of_Machine != 0x00 :
                 publish_MQTT_claw_data(claw_1, 'status')
                 WDT_feed_flag = 1
@@ -662,10 +623,11 @@ def server_check_timer_callback():
             now_main_state.transition('WiFi is disconnect')
             return
 
+new_sales_flag = False
 server_report_flag = 0
 server_report_period = 3*6   # 3分鐘=3*6, 單位10秒
 # server_report_period = 1   # For快速測試, 10秒=1, 單位10秒
-server_report_counter = server_report_period - 3 # 開機後第一次送MQTT會縮短到30秒
+server_report_counter = server_report_period - 5 # 開機後第一次送MQTT會縮短到50秒
 # 定義server_report計時器回調函式 (每1秒執行1次)
 def server_report_timer_callback(timer):
     global server_report_counter, server_report_flag
@@ -849,8 +811,8 @@ while True:
                 try:
                     subscribe_MQTT_claw_topic()
                     now_main_state.transition('MQTT is OK')
-                except:
-                    print('MQTT subscription has failed')
+                except Exception as e:
+                    print('MQTT subscription has failed:', e)
         elif now_main_state.state == MainStatus.NONE_FEILOLI:
             print('\n\rnow_main_state: MQTT is OK (FEILOLI UART is not OK), 開機時間:', get_uptime_str())
         elif now_main_state.state == MainStatus.STANDBY_FEILOLI:

@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 硬體平台
 - **目標硬體**: ESP32 開發板
 - **硬體版本**: SPHP_HWv1 (開心小卡硬體改成宏碁卡機使用)
-- **當前韌體版本**: SPHP1_V1.01a
+- **當前韌體版本**: SPHP1_V1.01b
 - **主要差異**: SPHP1_V1.00C 和 HP_V1.00c 的差異只有 EPAY_EN 的 IO Define 不一樣
 
 ### 程式碼規範
@@ -58,6 +58,9 @@ smartpay/
 │   ├── latestVersion/   # 最新版本 (用於 OTA)
 │   └── SPHP1_Vxxxx/     # 版本備份資料夾
 │
+├── docs/                 # 文檔目錄
+│   └── 娃娃機通訊協議.md  # ReceivedClawData 欄位對照文檔
+│
 ├── README.md            # 版本變更歷史
 └── push-check-list.md   # 發布檢查清單
 ```
@@ -85,16 +88,14 @@ smartpay/
 
 ### Commit 訊息格式
 ```
-**2025/12/4_SPHP1_V1.01a, Thomas**
-1. main.py 程式碼修改
-  a. 參考智付小卡類比版，同步成相似的log列印和程式碼運行流程
-  b. Import 順序和結構重整
-  c. GPIO 配置重新組織
-  ... (以下省略)
-2. Data_Collection_Main.py 程式碼修改
-  a. 參考智付小卡類比版，同步成相似的log列印和程式碼運行流程
-  b. 狀態機邏輯修正
-  c. MQTT 錯誤處理優化
+**2025/12/16_SPHP1_V1.01b, Thomas**
+1. Data_Collection_Main.py 改版，細項如下
+  a. ReceivedClawData 類別註解簡化與文檔分離
+     - 減少行數 38 行 (從 68 行縮短到 30 行)，字元數減少約 3450 字元
+     - 詳細對應關係移至獨立文檔 docs/娃娃機通訊協議.md
+  b. uart_FEILOLI_send_packet 函數重構與優化
+     - 減少程式碼重複，字元數減少約 380 字元
+  c. new_sales_flag 變數新增（MQTT 發布優化）
   ... (以下省略)
 ```
 
@@ -208,6 +209,7 @@ smartpay/
 
 ### 程式碼優化原則
 - 刪減註解以減少程式碼長度 (為了 OTA 記憶體限制)
+- 詳細註解移至獨立文檔檔案 (如 `docs/娃娃機通訊協議.md`)
 - 使用 README.md 當作 code-change list
 - 移除舊的測試程式碼和無用註解
 
@@ -222,3 +224,26 @@ smartpay/
 - **主分支**: main
 - **當前分支**: SPHP_HWv1 (宏碁卡機硬體版本)
 - 兩個硬體版本會同步修改新功能
+
+### 敏感檔案管理
+- **不納入版本控制的檔案**: token.dat、wifi.dat
+- 這些檔案包含敏感資訊（MQTT token、WiFi 密碼），已在 `.gitignore` 中設定不追蹤
+- 本地開發需保留這些檔案，但不會上傳到 GitHub
+- OTA 更新時這些檔案不會被覆蓋，保持設備獨立的設定
+
+### 已知未實作功能
+參考 README.md to-be-do list：
+
+1. **MQTT clawstartgame 指令的參數傳遞** (README 第 146 行)
+   - 位置: `Data_Collection_Main.py` Line 206-211
+   - 現況: 已接收 `epays` 和 `freeplays` 參數，但尚未傳遞給娃娃機
+   - 計畫: 需要實作將遊戲次數傳遞給 FEILOLI 協議的機制
+
+2. **FEILOLI 指令未完成項目**
+   - `Send_Machine_shutdown` (Line 436) - 關機指令（已註解）
+   - `Send_Payment_countdown_Or_fail` (Line 437) - 支付倒數/失敗指令（已註解）
+
+3. **ReceivedClawData 類別文檔化** (已完成於 V1.01b)
+   - 位置: `docs/娃娃機通訊協議.md`
+   - 說明: 記錄 ReceivedClawData 類別欄位與 FEILOLI 協議的對應關係
+   - 目的: 減少程式碼註解長度，便於 OTA 更新

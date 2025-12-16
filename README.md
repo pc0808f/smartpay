@@ -1,5 +1,53 @@
 # code-change list
 
+**2025/12/16_SPHP1_V1.01b, Thomas**
+1. Data_Collection_Main.py 改版，細項如下
+  a. ReceivedClawData 類別註解簡化與文檔分離
+     - 舊版 (Line 393-460): 每個欄位都有完整的詳細註解，如：self.CMD_Verification_code_and_Card_function = 0    # for 一、通訊說明\回覆修改驗證碼、刷卡功能的指令
+     - 新版 (Line 393-422):
+       - 簡化為分組註解（只標示所屬章節）
+       - 類別開頭加上 # 參考 docs\娃娃機通訊協議.md
+       - 詳細對應關係移至獨立的文檔檔案
+       - 減少行數 38 行 (從 68 行縮短到 30 行)，字元數減少約 3450 字元 (從約 5100 字元縮短到約 1650 字元)
+  b. uart_FEILOLI_send_packet 函數重構與優化
+     - 舊版 (Line 468-490):
+       - 每個指令分支都完整定義 16-byte 陣列
+       - 使用 if uart_send_packet[13] == FEILOLI_packet_id: 判斷有效指令
+       - 無效指令用 pass，可能產生 NameError
+     - 新版 (Line 429-449):
+       - 預先初始化預設封包結構：uart_send_packet = bytearray([0xBB, 0x73] + [0]*11 + [FEILOLI_packet_id, 0x00, 0xAA])
+       - 各指令分支只修改不同的 bytes，使用 slice 賦值：uart_send_packet[2:4] = bytearray([0x01, 0x01])
+       - 使用 else: print(...); return 明確處理無效指令
+       - 未完成的指令直接註解掉 (# elif ...  # 未完成)
+       - 減少程式碼重複，字元數減少約 380 字元 (從約 1820 字元縮短到約 1440 字元)
+  c. new_sales_flag 變數新增（MQTT 發布優化）
+     - 舊版: 無此變數，每次 server_report_flag 觸發都會發布 sales
+     - 新版:
+       - Line 626: 初始化 new_sales_flag = False
+       - Line 457: uart_FEILOLI_recive_packet_task 函數 global 宣告
+       - Line 493: UART 收到帳目資料 (0x82 0x01) 時設為 True
+       - Line 604: server_check_timer_callback 函數 global 宣告
+       - Line 613-615: 只在 new_sales_flag == True 且狀態正確時才發布 sales，發布後重置為 False
+       - 效果: 只在有新帳目資料時才發送 MQTT sales，減少不必要的網路流量
+  d. server_report_counter 初始值調整
+     - 舊版 (Line 668): server_report_counter = server_report_period - 3 → 第一次 30 秒後發送
+     - 新版 (Line 630): server_report_counter = server_report_period - 5 → 第一次 50 秒後發送
+     - 註解: 從「會縮短到30秒」改為「會縮短到50秒」
+  e. UART 接收封包顯示格式優化
+     - 舊版 (Line 514): print("Recive packet from 娃娃機:", uart_recive_packet)，顯示為 bytearray(b'\x2d\x8a...') 格式
+     - 新版 (Line 474): print("Recive packet from 娃娃機:", ''.join(['{:02X} '.format(byte) for byte in uart_recive_packet]))，顯示為 2D 8A 81 01 ... hex 格式，與發送封包格式一致
+  f. three_timer_task 錯誤處理改進
+     - 舊版 (Line 559): except OSError as e:
+     - 新版 (Line 519): except Exception as e:
+     - 更廣泛的錯誤捕獲範圍
+  g. MQTT subscription 錯誤處理改進
+     - 舊版 (Line 852-853): except: 只印出通用訊息
+     - 新版 (Line 814-815): except Exception as e: 印出具體錯誤訊息，範例: print('MQTT subscription has failed:', e)
+  h. commandack-fileremove 變數名稱一致性修正
+     - 舊版 (Line 366): uos.remove(para1) (變數名稱不一致)
+     - 新版 (Line 366): uos.remove(file_name) (與 Line 361 宣告一致)
+* Based on smartpay 2025/12/4_SPHP_V1.01a, Thomas
+---
 **2025/12/4_SPHP1_V1.01a, Thomas**
 1. main.py 程式碼修改
   a. 參考智付小卡類比版，同步成相似的log列印和程式碼運行流程
@@ -91,16 +139,17 @@
  
 # to-be-do list
 1. 確認OTA以下更新方式是否正常合理
-a. 舊->新
-b. 新->新
+  a. 舊->新
+  b. 新->新
 2. 記憶體優化、模組優化，導入新型的wifimgr.py和lcd_manager.py，或是導入其他較省記憶體的方式
 3. 整理和簡化Log和註解
 4. 可以接受MQTT的epays、freeplays的啟動指令，傳遞遊戲次數
 5. main.py 配置系統重構
-a. 可配置啟動延遲系統：新增 read_boot_delay() 函數，啟動時間從固定XX秒，改成可配置秒數
-b. 支援從config.json配置檔案讀取 boot_delay_sec，預設3秒，包含完整錯誤處理機制
-c. 新增系統配置檔案，支援啟動延遲配置 config.json：
-{
-    "boot_delay_sec": 60
-}
-6. class ReceivedClawData獨立出另一個md說明檔，可以瘦身程式碼本身
+  a. 可配置啟動延遲系統：新增 read_boot_delay() 函數，啟動時間從固定XX秒，改成可配置秒數
+  b. 支援從config.json配置檔案讀取 boot_delay_sec，預設3秒，包含完整錯誤處理機制
+  c. 新增系統配置檔案，支援啟動延遲配置 config.json：
+     ```json
+     {
+         "boot_delay_sec": 60
+     }
+     ```
